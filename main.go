@@ -13,6 +13,6 @@ func main() {
 	var websites = []input.Website{}
 	input.GetTargetInfo(&websites)
 	fmt.Println(websites)
-	request.RequestThread(websites)
+	request.InitWorker(websites, 10)
 
 }
