@@ -50,6 +50,6 @@ func main() {
 	}
 
 	fmt.Println(websites)
-	request.InitWorker(websites, 20)
+	request.InitWorker(websites, 20) // ADICIONOAR OPCAO DE THREAD
 
 }

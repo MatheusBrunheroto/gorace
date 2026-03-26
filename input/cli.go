@@ -35,10 +35,7 @@ func RunCLI(websites *[]Website) error {
 	if err := filterUrl(url); err != nil {
 		return err
 	}
-	if *method == "" {
-		fmt.Println("No method informed (-X or --method), \"GET\" will be used...")
-		*method = "GET"
-	}
+	filterMethod(method) // Doesn't need error to be returned, worst case scenario, GET is used
 
 	headers_map := make(map[string]string)
 	cookies_map := make(map[string]string)

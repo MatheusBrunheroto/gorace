@@ -38,25 +38,26 @@ func Worker(websites []input.Website) {
 
 	for _, v := range websites {
 
-		data := url.Values{}
-		for data_name, data_value := range v.Data {
-			data.Set(data_name, data_value)
-		}
+		client := &http.Client{}
 
-		body := strings.NewReader(data.Encode())
+		data := url.Values{}
+		for key, value := range v.Data {
+			data.Set(key, value)
+		}
+		body := strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
 
 		request, err := http.NewRequest(v.Method, v.Url, body)
 		if err != nil {
 			fmt.Printf("client: could not create request: %s\n", err)
 			os.Exit(1)
 		}
-		client := &http.Client{}
+
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		for header_name, header_value := range v.Headers {
-			request.Header.Set(header_name, header_value)
+		for key, value := range v.Headers {
+			request.Header.Set(key, value)
 		}
-		for cookie_name, cookie_value := range v.Cookies {
-			request.AddCookie(&http.Cookie{Name: cookie_name, Value: cookie_value})
+		for key, value := range v.Cookies {
+			request.AddCookie(&http.Cookie{Name: key, Value: value})
 		}
 
 		resp, err := client.Do(request)

@@ -45,3 +45,31 @@ func filterUrl(target *string) error {
 
 	return nil
 }
+
+func filterMethod(method *string) {
+
+	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"}
+
+	if *method == "" {
+		fmt.Println("No method informed (-X or --method), \"GET\" will be used...")
+		*method = "GET"
+		return
+	}
+
+	*method = strings.ToUpper(*method)
+
+	if strings.Contains(*method, " ") {
+		strings.ReplaceAll(*method, " ", "")
+		fmt.Println("Method contains a SPACE character, removing...")
+	}
+
+	for _, m := range methods {
+		if *method == m {
+			return
+		}
+	}
+
+	fmt.Printf("Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", *method)
+
+	// COLOCAR REGEX
+}
