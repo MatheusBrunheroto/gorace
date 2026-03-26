@@ -4,18 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 )
 
 var scanner = bufio.NewScanner(os.Stdin)
-
-type Website struct {
-	Link    string
-	Method  int8 // Converted to [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS] later
-	Headers map[string]string
-	Cookies map[string]string
-	Data    map[string]string
-}
 
 // Simplify the header, cookies and data collection
 func readKeyValuePairs(text string) map[string]string {
@@ -29,18 +20,10 @@ func readKeyValuePairs(text string) map[string]string {
 		scanner.Scan()
 		raw := scanner.Text()
 
-		// This avoids string being empty, because it is mandatory to have ":"
-		if !strings.Contains(raw, ":") {
+		err := filterKeys(raw, key_map) // key_map is defined by reference in the filterKeys function
+		if err == nil {
 			break
 		}
-
-		key := strings.SplitN(raw, ":", 2)
-		if key[0] == "" || key[1] == "" {
-			break
-		}
-		key[0] = strings.TrimSpace(key[0])
-		key[1] = strings.TrimSpace(key[1])
-		key_map[key[0]] = key[1] // key_map[key_name] = key_value
 
 	}
 

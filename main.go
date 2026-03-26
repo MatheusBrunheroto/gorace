@@ -4,15 +4,47 @@ import (
 	"fmt"
 	"gorace/input"
 	"gorace/request"
+	"os"
 )
+
+func error() {
+	fmt.Println("Wrong usage, please specify mode: \"-c\", \"-w\", \"-i\"; or \"--cli\", \"--wordlist\", \"--iterative\".")
+	fmt.Println("For more info use: \"-h\" or \"--help\".")
+}
 
 func main() {
 
-	// If opçao de wordlist, nao passar pelo gettarget, sim pelo readwordlist
+	// Guarantee that only one "mode" flag is passed
+	modes := 0
+	if os.Args[1] == "-c" || os.Args[1] == "--cli" {
+		modes++
+	}
+	if os.Args[1] == "-w" || os.Args[1] == "--wordlist" {
+		modes++
+	}
+	if os.Args[1] == "-i" || os.Args[1] == "--interative" {
+		modes++
+	}
+	if modes != 1 {
+		error()
+		return
+	}
 
-	var websites = []input.Website{}
-	input.GetTargetInfo(&websites)
-	fmt.Println(websites)
+	// Only gets to here if a "mode" flag exists
+	var websites []input.Website
+
+	switch os.Args[1] {
+
+	case "-c", "--cli":
+		input.RunCLI(&websites)
+
+	case "-w", "--wordlist":
+		fmt.Println("Modo Wordlist")
+
+	case "-i", "--iterative":
+		input.GetTargetInfo(&websites)
+
+	}
+
 	request.InitWorker(websites, 10)
-
 }

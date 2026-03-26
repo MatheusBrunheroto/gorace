@@ -3,8 +3,6 @@ package request
 import (
 	"fmt"
 	"gorace/input"
-	"io"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -18,17 +16,16 @@ func InitWorker(websites []input.Website, amount int) {
 	wg.Add(amount)
 
 	for i := 0; i < amount; i++ {
-		fmt.Println(i)
 
+		// Wait for all the workers to be initialized, and start the requests at the same time
 		go func() {
 			defer wg.Done()
-
 			<-start
 			Worker(websites)
 		}()
 	}
 
-	close(start)
+	close(start) // Closing the channel is the trigger
 
 	wg.Wait()
 }
@@ -52,15 +49,9 @@ func Worker(websites []input.Website) {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(request.ContentLength)
+		fmt.Println(resp.ContentLength)
 		//We Read the response body on the line below.
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		//Convert the body to type string
-		sb := string(body)
-		log.Printf(sb)
+
 	}
 
 }
