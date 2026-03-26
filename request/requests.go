@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"gorace/input"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -34,22 +36,34 @@ func InitWorker(websites []input.Website, amount int) {
 // Receives a copy, so there is no need to thread lock
 func Worker(websites []input.Website) {
 
-	var methods = [7]string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-
 	for _, v := range websites {
 
-		request, err := http.NewRequest(methods[v.Method], v.Link, nil)
+		data := url.Values{}
+		for data_name, data_value := range v.Data {
+			data.Set(data_name, data_value)
+		}
+
+		body := strings.NewReader(data.Encode())
+
+		request, err := http.NewRequest(v.Method, v.Url, body)
 		if err != nil {
 			fmt.Printf("client: could not create request: %s\n", err)
 			os.Exit(1)
 		}
 		client := &http.Client{}
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		for header_name, header_value := range v.Headers {
+			request.Header.Set(header_name, header_value)
+		}
+		for cookie_name, cookie_value := range v.Cookies {
+			request.AddCookie(&http.Cookie{Name: cookie_name, Value: cookie_value})
+		}
 
 		resp, err := client.Do(request)
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(resp.ContentLength)
+		fmt.Println(resp.Status, resp.ContentLength)
 		//We Read the response body on the line below.
 
 	}

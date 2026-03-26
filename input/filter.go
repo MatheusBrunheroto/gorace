@@ -2,6 +2,8 @@ package input
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -19,5 +21,27 @@ func filterKeys(raw string, key_map map[string]string) error {
 	key[0] = strings.TrimSpace(key[0])
 	key[1] = strings.TrimSpace(key[1])
 	key_map[key[0]] = key[1] // key_map[key_name] = key_value
+	return nil
+}
+
+func filterUrl(target *string) error {
+
+	if *target == "" {
+		return errors.New("No Website URL was informed (-U or --url)")
+	}
+	if strings.HasPrefix(*target, "-") {
+		return errors.New("Invalid URL for -U or --url -> " + *target)
+	}
+
+	if !strings.HasPrefix(*target, "http://") && !strings.HasPrefix(*target, "https://") {
+		*target = "https://" + *target
+		fmt.Println("URL must start with http:// or https:// -> New url: " + *target)
+	}
+
+	u, err := url.Parse(*target)
+	if err != nil || u.Host == "" {
+		return errors.New("invalid URL -> " + *target)
+	}
+
 	return nil
 }

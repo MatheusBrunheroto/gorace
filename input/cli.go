@@ -1,7 +1,6 @@
 package input
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -28,13 +27,13 @@ func RunCLI(websites *[]Website) error {
 	flag.Var(&cookies, "C", "Cookies")
 	flag.Var(&data, "D", "POST Data")
 
-	link := flag.String("U", "", "Website URL")
+	url := flag.String("U", "", "Website URL")
 	method := flag.String("X", "", "HTTP Method")
 
 	flag.Parse()
 
-	if *link == "" {
-		return errors.New("No Website URL was informed (-U or --url)")
+	if err := filterUrl(url); err != nil {
+		return err
 	}
 	if *method == "" {
 		fmt.Println("No method informed (-X or --method), \"GET\" will be used...")
@@ -68,17 +67,13 @@ func RunCLI(websites *[]Website) error {
 	}
 
 	website := Website{
-		Link:    *link,
+		Url:     *url,
 		Method:  *method,
 		Headers: headers_map,
 		Cookies: cookies_map,
 		Data:    data_map,
 	}
-	fmt.Println(*link)
-	fmt.Println(*method)
-	fmt.Println(headers)
-	fmt.Println(cookies)
-	fmt.Println(data)
+
 	*websites = append(*websites, website)
 	return nil
 

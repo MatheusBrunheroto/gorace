@@ -36,7 +36,10 @@ func main() {
 	switch os.Args[1] {
 
 	case "-c", "--cli":
-		input.RunCLI(&websites)
+		if err := input.RunCLI(&websites); err != nil {
+			fmt.Println(err)
+			return
+		}
 
 	case "-w", "--wordlist":
 		fmt.Println("Modo Wordlist")
@@ -46,5 +49,7 @@ func main() {
 
 	}
 
-	request.InitWorker(websites, 10)
+	fmt.Println(websites)
+	request.InitWorker(websites, 20)
+
 }

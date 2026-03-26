@@ -42,39 +42,34 @@ func readKeyValuePairs(text string) map[string]string {
 
 func GetTargetInfo(websites *[]Website) {
 
-	var link string
-	var method int8
+	var url string
+	var method string
 
 	for i := 1; ; i++ {
 
 		// Reset temporary website to suit the struct, and avoid wrong values in future empty entries
 		website := Website{
-			Link:    link,
+			Url:     url,
 			Method:  method,
 			Headers: make(map[string]string),
 			Cookies: make(map[string]string),
 			Data:    make(map[string]string),
 		}
 
-		fmt.Printf("[%d] Insert link -> ", i)
+		fmt.Printf("[%d] Insert url -> ", i)
 		scanner.Scan()
-		link = scanner.Text()
+		url = scanner.Text()
 		fmt.Printf("\n")
-		if link == "" {
+		if url == "" {
 			break
 		}
 
 		fmt.Println("\t[GET(0), POST(1), PUT(2), PATCH(3), DELETE(4), HEAD(5), OPTIONS(6)]")
-		for {
-			fmt.Printf("\tInsert method [0 ... 6] -> ")
-			fmt.Scan(&method)
-			if method >= 0 && method <= 6 {
-				fmt.Printf("\n")
-				break
-			}
-		}
 
-		website.Link = link
+		fmt.Printf("\tInsert method [0 ... 6] -> ")
+		fmt.Scan(&method)
+
+		website.Url = url
 		website.Method = method
 
 		website.Headers = readKeyValuePairs("header")
