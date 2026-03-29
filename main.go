@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gorace/input"
 	"gorace/request"
-	"os"
 )
 
 func error() {
@@ -12,6 +11,7 @@ func error() {
 	fmt.Println("For more info use: \"-h\" or \"--help\".")
 }
 
+// usage example: gorace -u 'https://website.com' -h '{header_name:header_value, h2_name:WORDLIST1}' -c '{WORDLIST2:WORDLIST3}' -t 50 --no-filter
 /*
 	MODES:
 		-c --cli, enables **command line mode**
@@ -36,42 +36,14 @@ func error() {
 
 func main() {
 
-	// Guarantee that only one "mode" flag is passed
-	modes := 0
-	if os.Args[1] == "-c" || os.Args[1] == "--cli" {
-		modes++
-	}
-	if os.Args[1] == "-w" || os.Args[1] == "--wordlist" {
-		modes++
-	}
-	if os.Args[1] == "-i" || os.Args[1] == "--interative" {
-		modes++
-	}
-	if modes != 1 {
-		error()
+	var websites []input.Website
+	var threads int
+	if err := input.RunCLI(&websites, &threads); err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	// Only gets to here if a "mode" flag exists
-	var websites []input.Website
-
-	switch os.Args[1] {
-
-	case "-c", "--cli":
-		if err := input.RunCLI(&websites); err != nil {
-			fmt.Println(err)
-			return
-		}
-
-	case "-w", "--wordlist":
-		fmt.Println("Modo Wordlist")
-
-	case "-i", "--iterative":
-		input.GetTargetInfo(&websites)
-
-	}
-
-	fmt.Println(websites)
-	request.InitWorker(websites, 50) // ADICIONOAR OPCAO DE THREAD
+	// fmt.Println(websites)
+	request.InitWorker(websites, threads) // ADICIONOAR OPCAO DE THREAD
 
 }

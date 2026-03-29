@@ -7,21 +7,59 @@ import (
 	"strings"
 )
 
-func filterKeys(raw string, key_map map[string]string) error {
-
-	// This avoids string being empty, because it is mandatory to have ":"
-	if !strings.Contains(raw, ":") {
-		return errors.New("Invalid key! -> " + raw)
+func splitSymbol(raw string, symbol string) (string, string, error) {
+	key := strings.SplitN(raw, symbol, 2)
+	if len(key) != 2 || key[0] == "" || key[1] == "" {
+		return "", "", errors.New("Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
 	}
-	key := strings.SplitN(raw, ":", 2)
-	if key[0] == "" || key[1] == "" {
-		return errors.New("Invalid key! -> " + raw)
-	}
-
 	key[0] = strings.TrimSpace(key[0])
 	key[1] = strings.TrimSpace(key[1])
-	key_map[key[0]] = key[1] // key_map[key_name] = key_value
-	return nil
+	return key[0], key[1], nil
+}
+func filterKeys(raw string, key_map map[int]map[string]string, symbol string) (int, error) {
+
+	// PROVAVELMENTE REMOVER TUDO ISSO AQUI
+	// This also avoids string being empty
+	if !strings.HasPrefix(raw, "{") || !strings.HasSuffix(raw, "}") {
+		return -1, errors.New("Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
+	}
+	raw = strings.Trim(raw, "{}") // Removes curly braces to avoid it invading a header
+	// ATE AQUI, FICAR MAIS FACIL DE ESCREVER DEPOIS
+	// If has multiple headers, splits ':'
+	var keys []string
+	if !strings.Contains(raw, ",") {
+
+		key_name, key_value, err := splitSymbol(raw, symbol)
+		if err != nil {
+			return -1, err
+		}
+		if key_map[0] == nil {
+			key_map[0] = make(map[string]string)
+		}
+		key_map[0][key_name] = key_value
+
+	} else {
+
+		keys = strings.Split(raw, ",")
+		for i, k := range keys {
+
+			key_name, key_value, err := splitSymbol(k, symbol)
+			if err != nil {
+				return -1, err
+			}
+			if key_map[i] == nil {
+				key_map[i] = make(map[string]string)
+			}
+			key_map[i][key_name] = key_value
+
+			if strings.Contains(key_name, "WORDLIST") || strings.Contains(key_value, "WORDLIST") {
+				wordlist_size++
+			}
+		}
+
+	}
+
+	return wordlist_size, nil
 }
 
 func filterUrl(target *string) error {
@@ -72,4 +110,17 @@ func filterMethod(method *string) {
 	fmt.Printf("Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", *method)
 
 	// COLOCAR REGEX
+}
+
+func filterPath(path string) string {
+
+	key := strings.SplitN(raw, "=", 2)
+
+	if len(key) != 2 || key[0] == "" || key[1] == "" {
+		return "", "", errors.New("Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
+	}
+	key[0] = strings.TrimSpace(key[0])
+	key[1] = strings.TrimSpace(key[1])
+	return key[0], key[1], nil
+
 }
