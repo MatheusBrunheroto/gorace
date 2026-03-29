@@ -39,20 +39,34 @@ func Worker(websites []input.Website) {
 	for _, v := range websites {
 
 		client := &http.Client{}
+		var data url.Values
+		var body *strings.Reader
+		var request *http.Request
+		var err error
 
-		data := url.Values{}
-		for key, value := range v.Data {
-			data.Set(key, value)
+		switch v.Method {
+
+		case "POST", "PUT", "PATCH": // Has body
+
+			data = url.Values{}
+			for key, value := range v.Data {
+				data.Set(key, value)
+			}
+			body = strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
+
+			request, err = http.NewRequest(v.Method, v.Url, body)
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		default:
+			body = nil
 		}
-		body := strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
 
-		request, err := http.NewRequest(v.Method, v.Url, body)
 		if err != nil {
 			fmt.Printf("client: could not create request: %s\n", err)
 			os.Exit(1)
 		}
 
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		// Won't do anything if v.Headers or v.Cookies are empty, no need to check
 		for key, value := range v.Headers {
 			request.Header.Set(key, value)
 		}

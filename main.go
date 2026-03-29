@@ -12,6 +12,28 @@ func error() {
 	fmt.Println("For more info use: \"-h\" or \"--help\".")
 }
 
+/*
+	MODES:
+		-c --cli, enables **command line mode**
+			The CLI mode will take only one website a time, unless a wordlist is provided,
+			in this case, will use two different modes, pitchfork (default) or clusterbomb
+
+		-i --interative, enables **interative mode**
+			The interative mode is not very pratical, but can be used to generate your own requests and save them in a
+			custom wordlist
+
+		-w --wordlist, enables **wordlist mode**
+			It's different from the --cli wordlists, it takes pre-made requests and make them, it's recommended to create the
+			wordlists using the interative mode
+
+	OPTIONS:
+		--no-filter, skips the data filtering, "wrong" parameters will be able to pass, for example:
+		using a header with ":HEADER_NAME:::::Content%!%!%@123123" will be passed in it's raw form to the request"
+
+		-t --threads, number of workers or agents to be used in the test, default=50
+
+*/
+
 func main() {
 
 	// Guarantee that only one "mode" flag is passed
@@ -50,6 +72,6 @@ func main() {
 	}
 
 	fmt.Println(websites)
-	request.InitWorker(websites, 20) // ADICIONOAR OPCAO DE THREAD
+	request.InitWorker(websites, 50) // ADICIONOAR OPCAO DE THREAD
 
 }

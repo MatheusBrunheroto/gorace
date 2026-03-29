@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// IF diverse inputs are provided, creates only one "website", but for the wordlist, change the
+
 type multiple_flags []string
 
 // Required to use "flag.Var(...)"
@@ -26,6 +28,7 @@ func RunCLI(websites *[]Website) error {
 	flag.Var(&headers, "H", "HTTP Headers")
 	flag.Var(&cookies, "C", "Cookies")
 	flag.Var(&data, "D", "POST Data")
+	flag.Var(&data, "no-filter", "Doesn't filter the DATA field")
 
 	url := flag.String("U", "", "Website URL")
 	method := flag.String("X", "", "HTTP Method")
@@ -40,6 +43,7 @@ func RunCLI(websites *[]Website) error {
 	headers_map := make(map[string]string)
 	cookies_map := make(map[string]string)
 	data_map := make(map[string]string)
+	var unfiltered_data bool
 
 	for _, h := range headers {
 		err := filterKeys(h, headers_map)
@@ -55,11 +59,16 @@ func RunCLI(websites *[]Website) error {
 			return err
 		}
 	}
-	for _, d := range data {
-		err := filterKeys(d, data_map)
-		if err != nil {
-			fmt.Println(err)
-			return err
+
+	if unfiltered_data {
+		data_map["unfiltered"] = data[0]
+	} else {
+		for _, d := range data {
+			err := filterKeys(d, data_map)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
 		}
 	}
 
