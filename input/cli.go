@@ -21,76 +21,67 @@ func (f *multiple_flags) Set(value string) error {
 
 func RunCLI(websites *[]Website, thread_amount *int) error {
 
-	var wordlist_path multiple_flags
-
-	var total_wordlists int = 0
-	flag.Var(&wordlist_path, "w", "Wordlists ('NAME=path')")
-
+	threads := flag.Int("t", 50, "Amount of Threads")
 	url := flag.String("u", "", "Website URL")
 	method := flag.String("X", "", "HTTP Method")
 	headers := flag.String("H", "", "HTTP Headers")
 	cookies := flag.String("b", "", "Cookies")
 	data := flag.String("d", "", "POST Data")
-	threads := flag.Int("t", 50, "POST Data")
-	flag.Parse()
-	// flag.String(&data, "no-filter", "Doesn't filter the DATA field")
+
+	var wordlist_path multiple_flags
+	flag.Var(&wordlist_path, "w", "Wordlists ('NAME=path')")
+
+	flag.Parse() // flag.String(&data, "no-filter", "Doesn't filter the DATA field")
 
 	if *threads <= 0 {
 		return fmt.Errorf("Invalid amount of threads -> %d", *threads)
 	}
 	*thread_amount = *threads
 
-	/* By reading the wordlists first, it's possible to separate the key_names from the path, and
-	   check later if a header/cookie/data contains this name as a key_name/key_value */
-	wordlists := make(map[string]string)
-	if len(wordlist_path) > 0 {
-		readWordlists(wordlist_path, wordlists)
-	}
-
 	if err := filterUrl(url); err != nil {
 		return err
 	}
 	filterMethod(method) // Doesn't need error to be returned, worst case scenario, GET is used
 
-	headers_map := make(map[int]map[string]string)
-	cookies_map := make(map[int]map[string]string)
-	data_map := make(map[int]map[string]string)
-	var unfiltered_data bool
+	/* By reading the wordlists first, it's possible to separate the key_names from the path, and
+	   check later if a header/cookie/data contains this name as a key_name/key_value */
 
-	for _, h := range *headers {
+	// key_map[n][key_name] = key_value, this allows repeated key_names
+	headers_map := make(map[string]string)
+	cookies_map := make(map[string]string)
+	data_map := make(map[string]string)
+	wordlists_map := make(map[string]string)
 
-		wordlist_size, err := filterKeys(h, headers_map, ":")
-		total_wordlists += wordlist_size
-		for i := 0; i < wordlist_size; i++ {
-			insertWordlist(headers_map, wordlists[i])
-		}
-
-		if err != nil {
+	if err := filterKeys(*headers, headers_map, ":"); err != nil {
+		return err
+	}
+	if err := filterKeys(*cookies, cookies_map, "="); err != nil {
+		return err
+	}
+	if err := filterKeys(*data, data_map, "="); err != nil {
+		return err
+	}
+	for _, w := range wordlist_path {
+		if err := filterKeys(w, wordlists_map, "="); err != nil {
 			return err
 		}
 	}
-	for _, c := range cookies {
-		err := filterKeys(c, cookies_map, "=")
-		if err != nil {
-			fmt.Println(err)
+
+	// Now with all headers, cookies and data, search for the wordlists placeholders registered before
+	// loop for aqui, pra iterar sobre todos os map
+	new_headers_map := make(map[int]map[string]string)
+	new_cookies_map := make(map[int]map[string]string)
+	new_data_map := make(map[int]map[string]string)
+	if len(wordlist_path) > 0 {
+		if err := handleWordlist(headers_map, new_headers_map, wordlists_map); err != nil {
 			return err
 		}
-	}
-
-	if unfiltered_data {
-		data_map["unfiltered"] = data[0]
-	} else {
-		for _, d := range data {
-			err := filterKeys(d, data_map)
-			if err != nil {
-				fmt.Println(err)
-				return err
-			}
+		if err := handleWordlist(cookies_map, new_cookies_map, wordlists_map); err != nil {
+			return err
 		}
-	}
-
-	if total_wordlists != len(wordlists) {
-		return fmt.Errorf("number of WORDLIST placeholders (%d) does not match provided wordlists (%d)", total_wordlists, len(wordlists))
+		if err := handleWordlist(data_map, new_data_map, wordlists_map); err != nil {
+			return err
+		}
 	}
 
 	website := Website{
