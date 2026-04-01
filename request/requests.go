@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-func InitWorker(websites []input.Website, amount int) {
+func InitWorker(jobs <-chan input.Website, amount int) {
 
 	start := make(chan struct{})
 	var wg sync.WaitGroup
@@ -36,9 +36,14 @@ func InitWorker(websites []input.Website, amount int) {
 // Receives a copy, so there is no need to thread lock
 func Worker(websites []input.Website) {
 
+	ch := make(chan input.Website)
+	ch <- z
+
 	fmt.Println(websites)
 
-	for _, v := range websites {
+	for _, w := range websites {
+
+		//		largest := maxSlice(w.Headers, w.Cookies, w.Data)
 
 		client := &http.Client{}
 		var data url.Values
@@ -46,17 +51,17 @@ func Worker(websites []input.Website) {
 		var request *http.Request
 		var err error
 
-		switch v.Method {
+		switch w.Method {
 
 		case "POST", "PUT", "PATCH": // Has body
 
 			data = url.Values{}
-			for _, d := range v.Data {
+			for _, d := range w.Data {
 				data.Set(d.Key, d.Value)
 			}
 			body = strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
 
-			request, err = http.NewRequest(v.Method, v.Url, body)
+			request, err = http.NewRequest(w.Method, w.Url, body)
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 		default:
@@ -69,10 +74,10 @@ func Worker(websites []input.Website) {
 		}
 
 		// Won't do anything if v.Headers or v.Cookies are empty, no need to check
-		for _, h := range v.Headers {
+		for _, h := range w.Headers {
 			request.Header.Set(h.Key, h.Value)
 		}
-		for _, c := range v.Cookies {
+		for _, c := range w.Cookies {
 			request.AddCookie(&http.Cookie{Name: c.Key, Value: c.Value})
 		}
 
@@ -85,6 +90,21 @@ func Worker(websites []input.Website) {
 
 	}
 
+}
+
+func maxSlice(a, b, c []KeyValue) []KeyValue {
+
+	max := a
+
+	if len(b) > len(max) {
+		max = b
+	}
+
+	if len(c) > len(max) {
+		max = c
+	}
+
+	return max
 }
 
 //func CreateC

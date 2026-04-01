@@ -10,7 +10,7 @@ import (
 /*
 Map structures:
 
-	- wordlists_map[placeholder] = path
+	- wordlistsMap[placeholder] = path
 
 	Case key_name == placeholder:
 		- key_map[placeholder] = key_value
@@ -30,45 +30,47 @@ Map structures:
 	key = {"placeholder":"value"} -> key = {"open.path()":"value"}
 */
 
-func handleWordlist(entry []KeyValue, wordlists []KeyValue) ([]KeyValue, error) {
+func handleWordlist(entry []KeyValue, wordlists []KeyValue) ([]KeyValue, []KeyValue, error) {
 
-	var new_entry []KeyValue
-	wordlists_map := sliceToMap(wordlists) // If someone uses -w WORDLIST1=path1 and -w WORDLIST1=path2, the path1 is ignored
+	var filtered []KeyValue
+	var wordlist []KeyValue
+
+	wordlistsMap := sliceToMap(wordlists) // If someone uses -w WORDLIST1=path1 and -w WORDLIST1=path2, the path1 is ignored
 
 	// First, copy the values on the key_map that aren't placeholders, the placeholders will go to insertWordlist
 	for _, kv := range entry {
 
 		// If key_name or key_value are placeholders, they can be called inside "wordlists"
-		_, keyIsPlaceholder := wordlists_map[kv.Key]
-		_, valueIsPlaceholder := wordlists_map[kv.Value]
+		_, keyIsPlaceholder := wordlistsMap[kv.Key]
+		_, valueIsPlaceholder := wordlistsMap[kv.Value]
 
 		if keyIsPlaceholder && valueIsPlaceholder {
 			fmt.Println("special case")
 
 		} else if keyIsPlaceholder {
-			if err := insertWordlist(&new_entry, kv.Value, wordlists_map[kv.Key], "name"); err != nil {
-				return []KeyValue{}, err
+			if err := insertWordlist(&wordlist, kv.Value, wordlistsMap[kv.Key], "name"); err != nil {
+				return []KeyValue{}, []KeyValue{}, err
 			}
 		} else if valueIsPlaceholder {
-			if err := insertWordlist(&new_entry, kv.Key, wordlists_map[kv.Value], "value"); err != nil {
-				return []KeyValue{}, err
+			if err := insertWordlist(&wordlist, kv.Key, wordlistsMap[kv.Value], "value"); err != nil {
+				return []KeyValue{}, []KeyValue{}, err
 			}
 
 		} else {
 
-			new_entry = append(new_entry, KeyValue{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
+			filtered = append(filtered, KeyValue{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
 
 		}
 	}
 
-	return new_entry, nil
+	return filtered, wordlist, nil
 }
 func sliceToMap(wordlists []KeyValue) map[string]string {
-	wordlists_map := make(map[string]string, len(wordlists))
+	wordlistsMap := make(map[string]string, len(wordlists))
 	for _, kv := range wordlists {
-		wordlists_map[kv.Key] = kv.Value
+		wordlistsMap[kv.Key] = kv.Value
 	}
-	return wordlists_map
+	return wordlistsMap
 }
 
 func insertWordlist(new_entry *[]KeyValue, placeholder string, path string, method string) error {

@@ -43,6 +43,8 @@ func main() {
 		return
 	}
 
+	jobs := make(chan input.Website)
+
 	// fmt.Println(websites)
 	request.InitWorker(websites, threads) // ADICIONOAR OPCAO DE THREAD
 

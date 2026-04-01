@@ -65,31 +65,55 @@ func RunCLI(websites *[]Website, thread_amount *int) error {
 	}
 
 	// Now with all headers, cookies and data, search for the wordlists placeholders registered before
-	// loop for aqui, pra iterar sobre todos os map
-
 	if len(wordlistPath) > 0 {
-		var err error
 
-		if headers, err = handleWordlist(headers, wordlists); err != nil {
+		filteredHeaders, expandedHeaders, err := handleWordlist(headers, wordlists)
+		if err != nil {
 			return err
 		}
-		if cookies, err = handleWordlist(cookies, wordlists); err != nil {
+		filteredCookies, expandedCookies, err := handleWordlist(cookies, wordlists)
+		if err != nil {
 			return err
 		}
-		if data, err = handleWordlist(data, wordlists); err != nil {
+		filteredData, expandedData, err := handleWordlist(data, wordlists)
+		if err != nil {
 			return err
+		}
+
+		for _, h := range expandedHeaders {
+
+			newHeaders := append(filteredHeaders, h)
+
+			website := Website{
+				Url:     *urlFlag,
+				Method:  *methodFlag,
+				Headers: newHeaders,
+				Cookies: cookies,
+				Data:    data,
+			}
+
+			jobs <- website
+			*websites = append(*websites, website)
+
 		}
 	}
 
-	website := Website{
-		Url:     *urlFlag,
-		Method:  *methodFlag,
-		Headers: headers,
-		Cookies: cookies,
-		Data:    data,
-	}
-
-	*websites = append(*websites, website)
 	return nil
 
 }
+
+// TENHO QUE CRIAR O SITE COM OS DADOS DA COISA
+/*
+
+Website
+- data = {
+			{key:value}
+			{key:value}
+			{key:WORDLIST}
+		 }
+
+if the wordlist has 3 words, only the last part should repeat
+
+
+
+*/
