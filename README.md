@@ -4,8 +4,31 @@ NOT FINISHED YET
 
 Works like ffuf, but instead of instantly activating a request, makes a queue that fire all the requests at the same time
 
+<hr>
+
+## Installation
+### Go Installer
+```bash
+go install NOT WORKING YET
+```
+### AUR package
+```bash
+yay -S NOT WORKING YET
+```
+### Manual (Building)
+```bash
+git clone https://github.com/MatheusBrunheroto/gorace.git
+cd gorace
+chmod +x install.sh
+./install.sh
+NOT WORKING
+```
+<hr>
+
+## Usage
 Usage Example:
-```gorace -u 'https://website.com' -h '{h1_key:h1_value, h2_key:WORDLIST1}' -c {WORDLIST2:WORDLIST3} -t 50```
+
+```gorace -u 'https://website.com' -H '{h1_key:h1_value, h2_key:WORDLIST1}' -c {WORDLIST2:WORDLIST3} -t 50```
 
 ### Manual Page
 ```text
@@ -79,6 +102,8 @@ AUTHOR
 COPYRIGHT
     MIT License
 ```
+
+<hr>
 
 ## Inspiration
 This repository was created to explore the [Race Condition](https://portswigger.net/web-security/race-conditions) challenges from PortSwigger Academy while learning [Go](https://go.dev/). The CLI was inspired by one of the most powerful fuzzing tools available, [FFUF](https://github.com/ffuf/ffuf).
