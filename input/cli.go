@@ -19,7 +19,7 @@ func (f *multiple_flags) Set(value string) error {
 	return nil
 }
 
-func RunCLI(websites *[]Website, thread_amount *int) error {
+func RunCLI(start chan<- struct{}, jobs chan<- Website, thread_amount *int) error {
 
 	threadsFlag := flag.Int("t", 50, "Amount of Threads")
 	urlFlag := flag.String("u", "", "Website URL")
@@ -80,24 +80,52 @@ func RunCLI(websites *[]Website, thread_amount *int) error {
 			return err
 		}
 
-		for _, h := range expandedHeaders {
-
-			newHeaders := append(filteredHeaders, h)
-
-			website := Website{
-				Url:     *urlFlag,
-				Method:  *methodFlag,
-				Headers: newHeaders,
-				Cookies: cookies,
-				Data:    data,
-			}
-
-			jobs <- website
-			*websites = append(*websites, website)
-
+		// avoid loop stoping for no reason
+		if len(expandedHeaders) == 0 {
+			expandedHeaders = []KeyValue{{}}
 		}
+		if len(expandedCookies) == 0 {
+			expandedCookies = []KeyValue{{}}
+		}
+		if len(expandedData) == 0 {
+			expandedData = []KeyValue{{}}
+		}
+		for _, h := range expandedHeaders {
+			for _, c := range expandedCookies {
+				for _, d := range expandedData {
+
+					newHeaders := append(filteredHeaders, h)
+					newCookies := append(filteredCookies, c)
+					newData := append(filteredData, d)
+
+					website := Website{
+						Url:     *urlFlag,
+						Method:  *methodFlag,
+						Headers: newHeaders,
+						Cookies: newCookies,
+						Data:    newData,
+					}
+
+					fmt.Println(website)
+					jobs <- website
+
+				}
+			}
+		}
+	} else {
+
+		website := Website{
+			Url:     *urlFlag,
+			Method:  *methodFlag,
+			Headers: headers,
+			Cookies: cookies,
+			Data:    data,
+		}
+		jobs <- website
 	}
 
+	// no need to deal with empty values
+	close(start)
 	return nil
 
 }

@@ -36,16 +36,17 @@ func error() {
 
 func main() {
 
-	var websites []input.Website
+	jobs := make(chan input.Website, 1000)
+	start := make(chan struct{})
+
 	var threads int
-	if err := input.RunCLI(&websites, &threads); err != nil {
+	if err := input.RunCLI(start, jobs, &threads); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	jobs := make(chan input.Website)
-
-	// fmt.Println(websites)
-	request.InitWorker(websites, threads) // ADICIONOAR OPCAO DE THREAD
-
+	// fmt.Println(websites)// ADICIONOAR OPCAO DE THREAD7
+	request.InitWorker(start, jobs, threads)
+	close(jobs)
+	fmt.Println("PORRAS RECHEADAS")
 }
