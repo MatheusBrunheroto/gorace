@@ -36,6 +36,8 @@ func InitWorker(websites []input.Website, amount int) {
 // Receives a copy, so there is no need to thread lock
 func Worker(websites []input.Website) {
 
+	fmt.Println(websites)
+
 	for _, v := range websites {
 
 		client := &http.Client{}
@@ -49,8 +51,8 @@ func Worker(websites []input.Website) {
 		case "POST", "PUT", "PATCH": // Has body
 
 			data = url.Values{}
-			for key, value := range v.Data {
-				data.Set(key, value)
+			for _, d := range v.Data {
+				data.Set(d.Key, d.Value)
 			}
 			body = strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
 
@@ -67,11 +69,11 @@ func Worker(websites []input.Website) {
 		}
 
 		// Won't do anything if v.Headers or v.Cookies are empty, no need to check
-		for key, value := range v.Headers {
-			request.Header.Set(key, value)
+		for _, h := range v.Headers {
+			request.Header.Set(h.Key, h.Value)
 		}
-		for key, value := range v.Cookies {
-			request.AddCookie(&http.Cookie{Name: key, Value: value})
+		for _, c := range v.Cookies {
+			request.AddCookie(&http.Cookie{Name: c.Key, Value: c.Value})
 		}
 
 		resp, err := client.Do(request)

@@ -27,28 +27,31 @@ func splitSymbol(raw string, symbol string) (string, string, error) {
 	key[1] = strings.TrimSpace(key[1])
 	return key[0], key[1], nil
 }
-func filterKeys(raw string, key_map map[string]string, symbol string) error {
+func filterKeys(raw string, entry *[]KeyValue, delimiter string) error {
 
 	// If has multiple headers, splits ':'
-	var keys []string
+	// por funcao aq
 	if !strings.Contains(raw, ",") {
 
-		key_name, key_value, err := splitSymbol(raw, symbol)
+		k, v, err := splitSymbol(raw, delimiter)
 		if err != nil {
 			return err
 		}
-		key_map[key_name] = key_value
+		*entry = append(*entry, KeyValue{Key: k, Value: v})
 
 	} else {
 
-		keys = strings.Split(raw, ",")
-		for _, k := range keys {
+		var pairs []string
+		pairs = strings.Split(raw, ",")
 
-			key_name, key_value, err := splitSymbol(k, symbol)
+		for _, pair := range pairs {
+
+			k, v, err := splitSymbol(pair, delimiter)
 			if err != nil {
 				return err
 			}
-			key_map[key_name] = key_value
+			*entry = append(*entry, KeyValue{Key: k, Value: v})
+
 		}
 
 	}

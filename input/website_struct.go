@@ -1,9 +1,14 @@
 package input
 
+type KeyValue struct {
+	Key   string
+	Value string
+}
+
 type Website struct {
 	Url     string
-	Method  string // [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
-	Headers map[string]string
-	Cookies map[string]string
-	Data    map[string]string
+	Method  string
+	Headers []KeyValue
+	Cookies []KeyValue
+	Data    []KeyValue
 }

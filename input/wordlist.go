@@ -14,11 +14,11 @@ Map structures:
 
 	Case key_name == placeholder:
 		- key_map[placeholder] = key_value
-	-> Add the words from the wordlist to new_key_map[index][words] = key_value
+	-> Add the words from the wordlist to new_entry[index][words] = key_value
 
 	Case key_value == placeholder:
 		- key_map[key_name] = placeholder
-	-> Add the words from the wordlist to new_key_map[index][key_name] = words
+	-> Add the words from the wordlist to new_entry[index][key_name] = words
 
 	Case key_name == placeholder && key_value == placeholder:
 		- key_map[placeholder1] = placeholder2
@@ -29,6 +29,68 @@ Map structures:
 	key = {"name":"value"}
 	key = {"placeholder":"value"} -> key = {"open.path()":"value"}
 */
+
+func handleWordlist(entry []KeyValue, wordlists []KeyValue) ([]KeyValue, error) {
+
+	var new_entry []KeyValue
+	wordlists_map := sliceToMap(wordlists) // If someone uses -w WORDLIST1=path1 and -w WORDLIST1=path2, the path1 is ignored
+
+	// First, copy the values on the key_map that aren't placeholders, the placeholders will go to insertWordlist
+	for _, kv := range entry {
+
+		// If key_name or key_value are placeholders, they can be called inside "wordlists"
+		_, keyIsPlaceholder := wordlists_map[kv.Key]
+		_, valueIsPlaceholder := wordlists_map[kv.Value]
+
+		if keyIsPlaceholder && valueIsPlaceholder {
+			fmt.Println("special case")
+
+		} else if keyIsPlaceholder {
+			if err := insertWordlist(&new_entry, kv.Value, wordlists_map[kv.Key], "name"); err != nil {
+				return []KeyValue{}, err
+			}
+		} else if valueIsPlaceholder {
+			if err := insertWordlist(&new_entry, kv.Key, wordlists_map[kv.Value], "value"); err != nil {
+				return []KeyValue{}, err
+			}
+
+		} else {
+
+			new_entry = append(new_entry, KeyValue{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
+
+		}
+	}
+
+	return new_entry, nil
+}
+func sliceToMap(wordlists []KeyValue) map[string]string {
+	wordlists_map := make(map[string]string, len(wordlists))
+	for _, kv := range wordlists {
+		wordlists_map[kv.Key] = kv.Value
+	}
+	return wordlists_map
+}
+
+func insertWordlist(new_entry *[]KeyValue, placeholder string, path string, method string) error {
+
+	words, err := readWordlists(path)
+	if err != nil {
+		return err
+	}
+
+	for _, w := range words {
+
+		if method == "name" {
+			*new_entry = append(*new_entry, KeyValue{Key: w, Value: placeholder})
+		} else {
+			*new_entry = append(*new_entry, KeyValue{Key: placeholder, Value: w})
+		}
+
+	}
+
+	return nil
+
+}
 
 func readWordlists(path string) ([]string, error) {
 
@@ -46,69 +108,4 @@ func readWordlists(path string) ([]string, error) {
 	}
 
 	return words, nil
-}
-
-func insertWordlist(new_key_map map[int]map[string]string, index *int, placeholder string, path string, method string) error {
-
-	words, err := readWordlists(path)
-	if err != nil {
-		return err
-	}
-
-	if method == "name" {
-		for _, w := range words {
-			if new_key_map[*index] == nil {
-				new_key_map[*index] = make(map[string]string)
-			}
-			new_key_map[*index][w] = placeholder
-			*index++
-		}
-
-	} else if method == "value" {
-		for _, w := range words {
-			if new_key_map[*index] == nil {
-				new_key_map[*index] = make(map[string]string)
-			}
-			new_key_map[*index][placeholder] = w
-			*index++
-		}
-	}
-
-	return nil
-
-}
-
-func handleWordlist(key_map map[string]string, new_key_map map[int]map[string]string, wordlists map[string]string) error {
-
-	var index int = 0
-
-	// First, copy the values on the key_map that aren't placeholders, the placeholders will go to insertWordlist
-	for k, v := range key_map {
-
-		// If key_name or key_value are placeholders, they can be called inside "wordlists"
-		_, key_is_placeholder := wordlists[k]
-		_, value_is_placeholder := wordlists[v]
-
-		if key_is_placeholder && value_is_placeholder {
-			fmt.Println("gozada insana")
-			//insertWordlist(new_key_map, &index, k, wordlists[k])
-
-		} else if key_is_placeholder {
-			insertWordlist(new_key_map, &index, k, wordlists[k], "name") // BOTAR FVERIFICACAO DE ERRO AQUI
-			delete(wordlists, k)
-
-		} else if value_is_placeholder {
-			insertWordlist(new_key_map, &index, v, wordlists[v], "value")
-			delete(wordlists, v)
-
-		} else {
-			if new_key_map[index] == nil {
-				new_key_map[index] = make(map[string]string)
-			}
-			new_key_map[index][k] = v // Adds non wordlist keys to the new_key_map
-			index++
-		}
-	}
-
-	return nil
 }
