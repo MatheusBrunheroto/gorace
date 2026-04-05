@@ -3,6 +3,7 @@ package request
 import (
 	"fmt"
 	"gorace/input"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -85,7 +86,16 @@ func Worker(start <-chan struct{}, jobs <-chan input.Website, wg *sync.WaitGroup
 		if err != nil {
 			panic(err)
 		}
+		respbody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		resp.Body.Close()
+
 		fmt.Println(resp.Status, resp.ContentLength)
+		if !strings.Contains(string(respbody), "Invalid username or password.") {
+			fmt.Println(w.Data, resp.Header)
+		}
 		//We Read the response body on the line below.
 
 	}

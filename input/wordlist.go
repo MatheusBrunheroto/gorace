@@ -58,11 +58,14 @@ func handleWordlist(entry []KeyValue, wordlists []KeyValue) ([]KeyValue, []KeyVa
 
 		} else {
 
-			filtered = append(filtered, KeyValue{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
+			if kv.Key != "" && kv.Value != "" {
+				filtered = append(filtered, KeyValue{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
+			}
 
 		}
 	}
-
+	fmt.Println(filtered)
+	//fmt.Println(wordlist)
 	return filtered, wordlist, nil
 }
 func sliceToMap(wordlists []KeyValue) map[string]string {
