@@ -27,7 +27,7 @@ func splitSymbol(raw string, symbol string) (string, string, error) {
 	key[1] = strings.TrimSpace(key[1])
 	return key[0], key[1], nil
 }
-func filterKeys(raw string, entry *[]KeyValue, delimiter string) error {
+func filterKeys(raw string, entry *[]Pair, delimiter string) error {
 
 	// If has multiple headers, splits ':'
 	// por funcao aq
@@ -37,7 +37,7 @@ func filterKeys(raw string, entry *[]KeyValue, delimiter string) error {
 		if err != nil {
 			return err
 		}
-		*entry = append(*entry, KeyValue{Key: k, Value: v})
+		*entry = append(*entry, Pair{Key: k, Value: v})
 
 	} else {
 
@@ -50,7 +50,7 @@ func filterKeys(raw string, entry *[]KeyValue, delimiter string) error {
 			if err != nil {
 				return err
 			}
-			*entry = append(*entry, KeyValue{Key: k, Value: v})
+			*entry = append(*entry, Pair{Key: k, Value: v})
 
 		}
 
@@ -103,7 +103,6 @@ func filterMethod(method *string) {
 			return
 		}
 	}
-
 	fmt.Printf("Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", *method)
 
 	// COLOCAR REGEX

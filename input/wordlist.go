@@ -7,6 +7,44 @@ import (
 	"os"
 )
 
+func readWordlists(path string) ([]string, error) {
+
+	file, err := os.Open(path)
+	if err != nil {
+		return []string{}, errors.New("Invalid path -> " + path)
+	}
+	defer file.Close()
+
+	var words []string
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		words = append(words, scanner.Text())
+	}
+
+	return words, nil
+}
+
+func insertWordlist(new_entry *[]Pair, placeholder string, path string, method string) error {
+
+	words, err := readWordlists(path)
+	if err != nil {
+		return err
+	}
+
+	for _, w := range words {
+
+		if method == "name" {
+			*new_entry = append(*new_entry, Pair{Key: w, Value: placeholder})
+		} else {
+			*new_entry = append(*new_entry, Pair{Key: placeholder, Value: w})
+		}
+
+	}
+
+	return nil
+}
+
 /*
 Map structures:
 
@@ -30,10 +68,17 @@ Map structures:
 	key = {"placeholder":"value"} -> key = {"open.path()":"value"}
 */
 
-func handleWordlist(entry []KeyValue, wordlists []KeyValue) ([]KeyValue, []KeyValue, error) {
+func sliceToMap(wordlists []Pair) map[string]string {
+	wordlistsMap := make(map[string]string, len(wordlists))
+	for _, kv := range wordlists {
+		wordlistsMap[kv.Key] = kv.Value
+	}
+	return wordlistsMap
+}
+func handleWordlist(entry []Pair, wordlists []Pair) ([]Pair, []Pair, error) {
 
-	var filtered []KeyValue
-	var wordlist []KeyValue
+	var filtered []Pair
+	var wordlist []Pair
 
 	wordlistsMap := sliceToMap(wordlists) // If someone uses -w WORDLIST1=path1 and -w WORDLIST1=path2, the path1 is ignored
 
@@ -49,68 +94,19 @@ func handleWordlist(entry []KeyValue, wordlists []KeyValue) ([]KeyValue, []KeyVa
 
 		} else if keyIsPlaceholder {
 			if err := insertWordlist(&wordlist, kv.Value, wordlistsMap[kv.Key], "name"); err != nil {
-				return []KeyValue{}, []KeyValue{}, err
+				return []Pair{}, []Pair{}, err
 			}
 		} else if valueIsPlaceholder {
 			if err := insertWordlist(&wordlist, kv.Key, wordlistsMap[kv.Value], "value"); err != nil {
-				return []KeyValue{}, []KeyValue{}, err
+				return []Pair{}, []Pair{}, err
 			}
 
 		} else {
-
 			if kv.Key != "" && kv.Value != "" {
-				filtered = append(filtered, KeyValue{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
+				filtered = append(filtered, Pair{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
 			}
-
 		}
 	}
-	fmt.Println(filtered)
-	//fmt.Println(wordlist)
+
 	return filtered, wordlist, nil
-}
-func sliceToMap(wordlists []KeyValue) map[string]string {
-	wordlistsMap := make(map[string]string, len(wordlists))
-	for _, kv := range wordlists {
-		wordlistsMap[kv.Key] = kv.Value
-	}
-	return wordlistsMap
-}
-
-func insertWordlist(new_entry *[]KeyValue, placeholder string, path string, method string) error {
-
-	words, err := readWordlists(path)
-	if err != nil {
-		return err
-	}
-
-	for _, w := range words {
-
-		if method == "name" {
-			*new_entry = append(*new_entry, KeyValue{Key: w, Value: placeholder})
-		} else {
-			*new_entry = append(*new_entry, KeyValue{Key: placeholder, Value: w})
-		}
-
-	}
-
-	return nil
-
-}
-
-func readWordlists(path string) ([]string, error) {
-
-	file, err := os.Open(path)
-	if err != nil {
-		return []string{}, errors.New("Invalid path -> " + path)
-	}
-	defer file.Close()
-
-	var words []string
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		words = append(words, scanner.Text())
-	}
-
-	return words, nil
 }

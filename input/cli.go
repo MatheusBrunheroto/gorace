@@ -7,30 +7,30 @@ import (
 	"strings"
 )
 
-func readFlag(flag *[]string, index *int, args []string) error {
+func readFlag(flag *Flag, index int, args []string) error {
 
-	(*index)++
-	if *index >= len(args) {
+	index++
+	if index >= len(args) {
 		return errors.New("Missing parameter for flag -> ") // PASSAR ALGUMA STRING PRA CA PRA RETORNAR CERTINHO
 	}
-	arg := args[*index]
+	arg := args[index]
 
 	if strings.HasPrefix(arg, "-") {
 		return errors.New("Wrong parameter usage! -> ")
 	}
-	*flag = append(*flag, arg)
+	flag.parameter = append(flag.parameter, arg)
 
 	return nil
 }
 
 /*
-Lets suppose that flagAmount =
+Lets assume that flagAmount =
 
-	"--url": 0,
-	"--method": 0,
+	"--url": 1,
+	"--method": 1,
 	"--headers": 0
 	"--cookies": 0
-	"--data": 0
+	"--data": 1
 	"--threads": 0
 	"--wordlist": 0
 
@@ -38,22 +38,23 @@ Every quantity should be the same as the number of url, so the append doesn't cr
 the array, causing a "desync".
 Example, if the user wants to send data only in the 3rd URL, the data array will have 2 empty elements before it.
 */
-func fixEmpty(flag *[]string, url *[]string) error {
+func fixEmpty(flag *Flag, urlAmount int) error {
 
-	flagAmount := len(*flag)
-	urlAmount := len(*url)
+	if flag.exists == false {
+		flag.parameter = append(flag.parameter, "")
+		return nil
+	}
 
-	if flagAmount < urlAmount {
-		*flag = append(*flag, "")
-	} else if flagAmount > urlAmount {
-		return errors.New("Two or more equal flags detected!")
+	// Flag exists, may have more than one
+	flagAmount := len(flag.parameter)
+	if flagAmount > urlAmount {
+		return errors.New("Two or more equal flags detected! -> add header")
 	}
 
 	return nil
 }
 
-/*
-The command MUST follow:
+/* The command MUST follow:
 
 	gorace -u 'url' \
 		   -H 'h1_name:h1_value,h2_name:h2_value'	\
@@ -67,123 +68,116 @@ The command MUST follow:
 		   -d 'd1_name =d1_value' \
 		   -w 'WORDLIST1=PATH1,WORDLIST2=PATH2' \
 
-After every but the first "-u", the flags before it are all added to a []Website,
+After every "-u" except the first, the flags before it are all added to a []Website,
 
 How parseCLI() works:
 
-	urlArgs []string 					-> Each index represents a url
+	urlFlag []string 					-> Each index represents a url
 	flagMap := map[string]*[]string 	-> maps a Flag ("-u") with the address to the urlArgs string array
 	So flagMap["-u"] corresponds to the address of the urlArgs string array
 */
+
 func parseCLI() ([]Website, error) {
 
 	var websites []Website
-
-	var (
-		urlArgs      []string
-		methodArgs   []string
-		headersArgs  []string
-		cookiesArgs  []string
-		dataArgs     []string
-		threadsArgs  []string
-		wordlistArgs []string
-	)
-	parameters := [6]*[]string{&methodArgs, &headersArgs, &cookiesArgs, &dataArgs, &threadsArgs, &wordlistArgs}
-	flagMap := map[string]*[]string{
-		"-u": &urlArgs, "--url": &urlArgs,
-		"-X": &methodArgs, "--method": &methodArgs,
-		"-H": &headersArgs, "--headers": &headersArgs,
-		"-c": &cookiesArgs, "--cookies": &cookiesArgs,
-		"-d": &dataArgs, "--data": &dataArgs,
-		"-t": &threadsArgs, "--threads": &threadsArgs,
-		"-w": &wordlistArgs, "--wordlist": &wordlistArgs,
-	}
 	args := os.Args[1:]
 
-	for i := 0; i < len(args); i++ {
-
-		if flagPtr, ok := flagMap[args[i]]; ok {
-
-			if (args[i] == "-u" || args[i] == "--url") && len(urlArgs) != 0 {
-				for _, n := range parameters {
-					fixEmpty(n, &urlArgs)
-				}
-			}
-
-			if err := readFlag(flagPtr, &i, args); err != nil {
-				return []Website{}, err
-			}
-
-		}
-
+	// Initializes all the flags
+	var urlFlag, methodFlag, headersFlag, cookiesFlag, dataFlag, threadsFlag, wordlistsFlag Flag
+	flags := [7]*Flag{&urlFlag, &methodFlag, &threadsFlag, &headersFlag, &cookiesFlag, &dataFlag, &wordlistsFlag}
+	for _, f := range flags {
+		f.parameter = []string{}
+		f.exists = false
+	}
+	flagMap := map[string]*Flag{
+		"-u": &urlFlag, "--url": &urlFlag,
+		"-X": &methodFlag, "--method": &methodFlag,
+		"-H": &headersFlag, "--headers": &headersFlag,
+		"-c": &cookiesFlag, "--cookies": &cookiesFlag,
+		"-d": &dataFlag, "--data": &dataFlag,
+		"-t": &threadsFlag, "--threads": &threadsFlag,
+		"-w": &wordlistsFlag, "--wordlist": &wordlistsFlag,
 	}
 
-	for i := 0; i < len(urlArgs); i++ {
+	// Read the arguments
+	var urlAmount int
+	for i := 0; i < len(args); i++ {
 
-		var headers, cookies, data, wordlists []KeyValue
+		flag, exist := flagMap[args[i]]
+		if !exist {
+			continue
+		}
+		// Starts to read Flags for new URL in case of double endpoint (ignores the first URL)
+		urlAmount = len(urlFlag.parameter)
+		if (args[i] == "-u" || args[i] == "--url") && urlAmount != 0 {
+			for _, f := range flags[:1] { // Does not include urlArgs on pourpose
+				fixEmpty(f, urlAmount) // checks for flag.Exists, if not, append empty
+				f.exists = false
+			}
+		}
 
-		if err := filterUrl(&urlArgs[i]); err != nil { // CUIDADO AQUI
+		if err := readFlag(flag, i, args); err != nil {
 			return []Website{}, err
 		}
-		filterMethod(&methodArgs[i]) // Doesn't need error to be returned, worst case scenario, GET is used
+		i++
 
-		/* By reading the wordlists first, it's possible to separate the key_names from the path, and
-		   check later if a header/cookie/data contains this name as a key_name/key_value */
+		flag.exists = true
+	}
 
-		// key_map[n][key_name] = key_value, this allows repeated key_names
-		if i < len(headersArgs) && headersArgs[i] != "" {
-			if err := filterKeys(headersArgs[i], &headers, ":"); err != nil {
+	headers := NewField(&headersFlag, []Pair{}, ":")
+	cookies := NewField(&cookiesFlag, []Pair{}, "=")
+	data := NewField(&dataFlag, []Pair{}, "=")
+	wordlists := NewField(&wordlistsFlag, []Pair{}, "=")
+	fields := []*Field{&headers, &cookies, &data, &wordlists}
+
+	for i := 0; i < urlAmount; i++ {
+
+		if err := filterUrl(&urlFlag.parameter[i]); err != nil { // CUIDADO AQUI
+			return []Website{}, err
+		}
+		filterMethod(&methodFlag.parameter[i]) // Doesn't need error to be returned, worst case scenario, GET is used
+
+		// Parse keys into the headers, cookies, data and wordlists fields
+		for _, field := range fields {
+			if i >= len(field.flag.parameter) || field.flag.parameter[i] == "" {
+				continue
+			}
+			if err := filterKeys(field.flag.parameter[i], &field.pairs, field.delimiter); err != nil {
 				return []Website{}, err
 			}
 		}
-		if i < len(cookiesArgs) && cookiesArgs[i] != "" {
-			if err := filterKeys(cookiesArgs[i], &cookies, "="); err != nil {
-				return []Website{}, err
-			}
-		}
-		if i < len(dataArgs) && dataArgs[i] != "" {
-			if err := filterKeys(dataArgs[i], &data, "="); err != nil {
-				return []Website{}, err
-			}
-		}
-		if i < len(wordlistArgs) && wordlistArgs[i] != "" {
-			if err := filterKeys(wordlistArgs[i], &wordlists, "="); err != nil {
-				return []Website{}, err
-			}
-		}
 
-		// Now with all headers, cookies and data, search for the wordlists placeholders registered before
-		if len(wordlists) > 0 {
+		// If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
+		if len(wordlists.pairs) > 0 {
 
-			filteredHeaders, expandedHeaders, err := handleWordlist(headers, wordlists)
+			filteredHeaders, expandedHeaders, err := handleWordlist(headers.pairs, wordlists.pairs)
 			if err != nil {
 				return []Website{}, err
 			}
-			filteredCookies, expandedCookies, err := handleWordlist(cookies, wordlists)
+			filteredCookies, expandedCookies, err := handleWordlist(cookies.pairs, wordlists.pairs)
 			if err != nil {
 				return []Website{}, err
 			}
-			filteredData, expandedData, err := handleWordlist(data, wordlists)
+			filteredData, expandedData, err := handleWordlist(data.pairs, wordlists.pairs)
 			if err != nil {
 				return []Website{}, err
 			}
 
-			// avoid loop stoping for no reason
+			// Avoid loop not starting
 			if len(expandedHeaders) == 0 {
-				expandedHeaders = []KeyValue{{}}
+				expandedHeaders = []Pair{{}}
 			}
 			if len(expandedCookies) == 0 {
-				expandedCookies = []KeyValue{{}}
-
+				expandedCookies = []Pair{{}}
 			}
 			if len(expandedData) == 0 {
-				expandedData = []KeyValue{{}}
+				expandedData = []Pair{{}}
 			}
 			for _, h := range expandedHeaders {
 				for _, c := range expandedCookies {
 					for _, d := range expandedData {
 
-						// Adding filteredKey before avoids newKey being empty in case k = []
+						// Adding filteredKey before avoids newField being empty in case k = []
 						newHeaders := filteredHeaders
 						newCookies := filteredCookies
 						newData := filteredData
@@ -199,8 +193,8 @@ func parseCLI() ([]Website, error) {
 						}
 
 						w := Website{
-							Url:     urlArgs[i],
-							Method:  methodArgs[i],
+							Url:     urlFlag.parameter[i],
+							Method:  methodFlag.parameter[i],
 							Headers: newHeaders,
 							Cookies: newCookies,
 							Data:    newData,
@@ -213,17 +207,18 @@ func parseCLI() ([]Website, error) {
 		} else {
 
 			w := Website{
-				Url:     urlArgs[i],
-				Method:  methodArgs[i],
-				Headers: headers,
-				Cookies: cookies,
-				Data:    data,
+				Url:     urlFlag.parameter[i],
+				Method:  methodFlag.parameter[i],
+				Headers: headers.pairs,
+				Cookies: cookies.pairs,
+				Data:    data.pairs,
 			}
 			websites = append(websites, w)
 
 		}
 
 	}
+
 	return websites, nil
 }
 
@@ -242,19 +237,3 @@ func RunCLI(start chan<- struct{}, jobs chan<- Website, thread_amount *int) erro
 	return nil
 
 }
-
-// TENHO QUE CRIAR O SITE COM OS DADOS DA COISA
-/*
-
-Website
-- data = {
-			{key:value}
-			{key:value}
-			{key:WORDLIST}
-		 }
-
-if the wordlist has 3 words, only the last part should repeat
-
-
-
-*/
