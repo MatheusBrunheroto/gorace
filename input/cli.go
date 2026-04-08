@@ -7,6 +7,35 @@ import (
 	"strings"
 )
 
+type Flag struct {
+	name      string
+	parameter []string
+	exists    bool
+}
+type Field struct {
+	flag      *Flag
+	pairs     []Pair
+	delimiter string
+}
+
+func newFlag(name string) Flag {
+	var flag Flag
+	flag.name = name
+	flag.parameter = []string{}
+	flag.exists = false
+	return flag
+}
+func NewField(flag *Flag, pairs []Pair, delimiter string) Field {
+
+	var field Field
+
+	field.flag = flag
+	field.pairs = pairs
+	field.delimiter = delimiter
+
+	return field
+}
+
 func readFlag(flag *Flag, index int, args []string) error {
 
 	index++
@@ -38,17 +67,25 @@ Every quantity should be the same as the number of url, so the append doesn't cr
 the array, causing a "desync".
 Example, if the user wants to send data only in the 3rd URL, the data array will have 2 empty elements before it.
 */
-func fixEmpty(flag *Flag, urlAmount int) error {
+func fixEmpty(flag *Flag, urlAmount int, name string) error {
 
 	if flag.exists == false {
-		flag.parameter = append(flag.parameter, "")
+
+		parameter := ""
+
+		if strings.Contains(name, "--method") {
+			parameter = "GET"
+			fmt.Println("macaco")
+		}
+
+		flag.parameter = append(flag.parameter, parameter)
 		return nil
 	}
 
 	// Flag exists, may have more than one
 	flagAmount := len(flag.parameter)
 	if flagAmount > urlAmount {
-		return errors.New("Two or more equal flags detected! -> add header")
+		return errors.New("Two or more equal flags detected! -> " + flag.name)
 	}
 
 	return nil
@@ -83,19 +120,20 @@ func parseCLI() ([]Website, error) {
 	args := os.Args[1:]
 
 	// Initializes all the flags
-	var urlFlag, methodFlag, headersFlag, cookiesFlag, dataFlag, threadsFlag, wordlistsFlag Flag
-	flags := [7]*Flag{&urlFlag, &methodFlag, &threadsFlag, &headersFlag, &cookiesFlag, &dataFlag, &wordlistsFlag}
-	for _, f := range flags {
-		f.parameter = []string{}
-		f.exists = false
-	}
+	urlFlag := newFlag("-u || --url")
+	methodFlag := newFlag("-m || --method")
+	headersFlag := newFlag("-H || --headers")
+	cookiesFlag := newFlag("-c || --cookies")
+	dataFlag := newFlag("-d || --data")
+	wordlistsFlag := newFlag("-w || --wordlists")
+
+	flags := [6]*Flag{&urlFlag, &methodFlag, &headersFlag, &cookiesFlag, &dataFlag, &wordlistsFlag}
 	flagMap := map[string]*Flag{
 		"-u": &urlFlag, "--url": &urlFlag,
 		"-X": &methodFlag, "--method": &methodFlag,
 		"-H": &headersFlag, "--headers": &headersFlag,
 		"-c": &cookiesFlag, "--cookies": &cookiesFlag,
 		"-d": &dataFlag, "--data": &dataFlag,
-		"-t": &threadsFlag, "--threads": &threadsFlag,
 		"-w": &wordlistsFlag, "--wordlist": &wordlistsFlag,
 	}
 
@@ -110,10 +148,11 @@ func parseCLI() ([]Website, error) {
 		// Starts to read Flags for new URL in case of double endpoint (ignores the first URL)
 		urlAmount = len(urlFlag.parameter)
 		if (args[i] == "-u" || args[i] == "--url") && urlAmount != 0 {
-			for _, f := range flags[:1] { // Does not include urlArgs on pourpose
-				fixEmpty(f, urlAmount) // checks for flag.Exists, if not, append empty
+			for _, f := range flags[1:] { // Does not include urlArgs on pourpose
+				fixEmpty(f, urlAmount, f.name) // checks for flag.Exists, if not, append empty
 				f.exists = false
 			}
+
 		}
 
 		if err := readFlag(flag, i, args); err != nil {
@@ -222,12 +261,15 @@ func parseCLI() ([]Website, error) {
 	return websites, nil
 }
 
-// Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = argument
-func RunCLI(start chan<- struct{}, jobs chan<- Website, thread_amount *int) error {
+// Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
+func RunCLI(jobs chan<- Website, thread_amount *int) error {
 
 	websites, err := parseCLI()
 	if err != nil {
 		return err
+	}
+	for _, w := range websites {
+		jobs <- w
 	}
 
 	//fmt.Println(websites)

@@ -11,25 +11,26 @@ import (
 	"sync"
 )
 
-func InitWorker(start <-chan struct{}, jobs <-chan input.Website, threads int) {
+func InitWorker(websites []input.Website, threads int) {
 
+	start := make(chan struct{})
 	var wg sync.WaitGroup
 
-	for i := 0; i < threads; i++ {
-
-		// Wait for all the workers to be initialized, and start the requests at the same time
-		wg.Go(func() {
-			Worker(start, jobs, &wg)
-		})
+	// If there are 100 different jobs, and 20 threads for each, 2000 threads will be initialized
+	for w := range websites {
+		for range threads {
+			wg.Go(func() { Worker(start, w, &wg) })
+		}
 	}
 
-	wg.Wait()
+	close(start)
+	wg.Wait() // Wait for all the workers to be initialized, and start the requests at the same time
 
 }
 
 // Always ends up doing N threads to the first website, and N for the other
 // Receives a copy, so there is no need to thread lock
-func Worker(start <-chan struct{}, jobs <-chan input.Website, wg *sync.WaitGroup) {
+func Worker(start <-chan struct{}, website input.Website, wg *sync.WaitGroup) {
 
 	<-start
 

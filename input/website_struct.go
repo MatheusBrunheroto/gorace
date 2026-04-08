@@ -21,29 +21,6 @@ type Pair struct {
 	Value string
 }
 
-type Flag struct {
-	parameter []string
-	exists    bool
-}
-
-type Field struct {
-	flag      *Flag
-	pairs     []Pair
-	delimiter string
-}
-
-func NewField(flag *Flag, pairs []Pair, delimiter string) Field {
-
-	var field Field
-
-	field.flag = flag
-	field.pairs = pairs
-	field.delimiter = delimiter
-
-	return field
-
-}
-
 type Website struct {
 	Url     string
 	Method  string

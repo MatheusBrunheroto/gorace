@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gorace/input"
+	"gorace/request"
 )
 
 func error() {
@@ -35,19 +36,23 @@ func error() {
 
 func main() {
 
-	// EVITAR SINTAXE ERRADA LOGO EM MAIN, LE THREAD DIRETO AQUI
+	/*args := os.Args[:1]
+	for _, a := range args {
+		if a == "-t" || a == "--threads" {
+
+		}
+	}*/
 
 	jobs := make(chan input.Website, 1000)
-	start := make(chan struct{})
 
 	var threads int
-	if err := input.RunCLI(start, jobs, &threads); err != nil {
+	if err := input.RunCLI(jobs, &threads); err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	// fmt.Println(websites)// ADICIONOAR OPCAO DE THREAD7
-	//request.InitWorker(start, jobs, threads)
-	// close(jobs)
+	request.InitWorker(jobs, 20)
+	//close(jobs)
 	fmt.Println("PORRAS RECHEADAS")
 }
