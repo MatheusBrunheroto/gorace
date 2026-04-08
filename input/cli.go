@@ -163,6 +163,11 @@ func parseCLI() ([]Website, error) {
 		flag.exists = true
 	}
 
+	for _, f := range flags[1:] { // Does not include urlArgs on pourpose
+		fixEmpty(f, urlAmount, f.name) // checks for flag.Exists, if not, append empty
+		f.exists = false
+	}
+
 	headers := NewField(&headersFlag, []Pair{}, ":")
 	cookies := NewField(&cookiesFlag, []Pair{}, "=")
 	data := NewField(&dataFlag, []Pair{}, "=")
@@ -262,20 +267,12 @@ func parseCLI() ([]Website, error) {
 }
 
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
-func RunCLI(jobs chan<- Website, thread_amount *int) error {
+func RunCLI() ([]Website, error) {
 
 	websites, err := parseCLI()
 	if err != nil {
-		return err
+		return []Website{}, err
 	}
-	for _, w := range websites {
-		jobs <- w
-	}
-
-	//fmt.Println(websites)
-	for _, v := range websites {
-		fmt.Println(v)
-	}
-	return nil
+	return websites, nil
 
 }

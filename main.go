@@ -3,13 +3,7 @@ package main
 import (
 	"fmt"
 	"gorace/input"
-	"gorace/request"
 )
-
-func error() {
-	fmt.Println("Wrong usage, please specify mode: \"-c\", \"-w\", \"-i\"; or \"--cli\", \"--wordlist\", \"--iterative\".")
-	fmt.Println("For more info use: \"-h\" or \"--help\".")
-}
 
 // usage example: gorace -u 'https://website.com' -h '{header_name:header_value, h2_name:WORDLIST1}' -c '{WORDLIST2:WORDLIST3}' -t 50 --no-filter
 /*
@@ -43,16 +37,20 @@ func main() {
 		}
 	}*/
 
-	jobs := make(chan input.Website, 1000)
+	var err error
+	var websites []input.Website
 
-	var threads int
-	if err := input.RunCLI(jobs, &threads); err != nil {
+	if websites, err = input.RunCLI(); err != nil {
 		fmt.Println(err)
 		return
 	}
 
+	for _, w := range websites {
+		fmt.Println(w)
+	}
+
 	// fmt.Println(websites)// ADICIONOAR OPCAO DE THREAD7
-	request.InitWorker(jobs, 20)
+	//request.InitWorker(websites, 1)
 	//close(jobs)
-	fmt.Println("PORRAS RECHEADAS")
+
 }
