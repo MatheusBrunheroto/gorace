@@ -11,18 +11,54 @@ import (
 	"sync"
 )
 
-func InitWorker(websites []input.Website, threads int) {
+func InitWorker(websites []input.Website, mode string) {
 
-	start := make(chan struct{})
+	/*
+		if mode = cluesterbomb, começa tudo igual fodase
+		if mode = line, começa um depois do outro, manda um de um, depois uma bomba de threads to outro, etc
+	*/
 	var wg sync.WaitGroup
+	startChans := make([]chan struct{}, len(websites))
+	for i := range startChans {
+		startChans[i] = make(chan struct{})
+	}
+
+	// Sequential mode makes n_threads requests for each url in sequence, doesn't start all requests together
+
+	// Waits for each url end to start other
+	switch mode {
+	case "sequential":
+		fmt.Println("a")
+	case "roundabout":
+		fmt.Println("a")
+		// paralel varias vezes
+
+	case "parallel":
+
+		for i, w := range websites {
+			fmt.Println(w.Threads)
+			for range w.Threads {
+				wg.Go(func() { Worker(startChans[i], w, &wg) })
+			}
+			close(startChans[i])
+		}
+
+	default: // This is the default mode, group all the requests and fire them at the exact same moment
+
+		start := make(chan struct{})
+		for _, w := range websites {
+			for range w.Threads {
+				wg.Go(func() { Worker(start, w, &wg) })
+			}
+		}
+		close(start)
+
+	}
+
+	// Intercale
 
 	// If there are 100 different jobs, and 20 threads for each, 2000 threads will be initialized
-	for _, w := range websites {
-		for range threads {
-			wg.Go(func() { Worker(start, w, &wg) })
-		}
-	}
-	close(start)
+
 	wg.Wait() // Wait for all the workers to be initialized, and start the requests at the same time
 
 }
@@ -33,7 +69,6 @@ func Worker(start <-chan struct{}, w input.Website, wg *sync.WaitGroup) {
 
 	<-start
 
-	fmt.Println(w)
 	wg.Add(1)
 	defer wg.Done()
 	//		largest := maxSlice(w.Headers, w.Cookies, w.Data)

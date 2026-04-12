@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"gorace/input"
+	"gorace/request"
+	"os"
 )
 
 // usage example: gorace -u 'https://website.com' -h '{header_name:header_value, h2_name:WORDLIST1}' -c '{WORDLIST2:WORDLIST3}' -t 50 --no-filter
@@ -28,18 +30,24 @@ import (
 
 */
 
+func init() {
+
+	fmt.Println("\n")
+	fmt.Println(`//  ▄▄ •       ▄▄▄   ▄▄▄·  ▄▄· ▄▄▄ .
+// ▐█ ▀ ▪▪     ▀▄ █·▐█ ▀█ ▐█ ▌▪▀▄.▀·
+// ▄█ ▀█▄ ▄█▀▄ ▐▀▀▄ ▄█▀▀█ ██ ▄▄▐▀▀▪▄
+// ▐█▄▪▐█▐█▌.▐▌▐█•█▌▐█ ▪▐▌▐███▌▐█▄▄▌
+// ·▀▀▀▀  ▀█▄▀▪.▀  ▀ ▀  ▀ ·▀▀▀  ▀▀▀ `)
+	fmt.Println("\n")
+
+}
+
 func main() {
 
-	/*args := os.Args[:1]
-	for _, a := range args {
-		if a == "-t" || a == "--threads" {
-
-		}
-	}*/
+	args := os.Args[:1]
 
 	var err error
 	var websites []input.Website
-
 	if websites, err = input.RunCLI(); err != nil {
 		fmt.Println(err)
 		return
@@ -49,8 +57,28 @@ func main() {
 		fmt.Println(w)
 	}
 
-	// fmt.Println(websites)// ADICIONOAR OPCAO DE THREAD7
-	//request.InitWorker(websites, 1)
+	var mode string = "flood"
+	modes := []string{"sequential", "parallel", "flood"}
+
+	for i := range args {
+		if args[i] == "-m" || args[i] == "--mode" {
+			mode = args[i+1]
+			break
+		}
+	}
+	var modeExists bool = false
+	for _, m := range modes {
+		if mode == m {
+			modeExists = true
+		}
+	}
+	if !modeExists {
+		mode = "flood"
+		fmt.Println("Unable to determine mode \"" + mode + "\" using \"flood\" as default...")
+	}
+	request.InitWorker(websites, mode)
 	//close(jobs)
 
 }
+
+// TODO, MODO de input direto de wordlist, MODOS DE rodar,

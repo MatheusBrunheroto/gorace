@@ -27,4 +27,5 @@ type Website struct {
 	Headers []Pair
 	Cookies []Pair
 	Data    []Pair
+	Threads int
 }

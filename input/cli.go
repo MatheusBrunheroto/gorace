@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -77,6 +78,10 @@ func fixEmpty(flag *Flag, urlAmount int, name string) error {
 			parameter = "GET"
 			fmt.Println("macaco")
 		}
+		if strings.Contains(name, "--threads") {
+			parameter = "1"
+			fmt.Println("gozando  merda")
+		}
 
 		flag.parameter = append(flag.parameter, parameter)
 		return nil
@@ -126,8 +131,9 @@ func parseCLI() ([]Website, error) {
 	cookiesFlag := newFlag("-c || --cookies")
 	dataFlag := newFlag("-d || --data")
 	wordlistsFlag := newFlag("-w || --wordlists")
+	threadsFlag := newFlag("-t || --threads")
 
-	flags := [6]*Flag{&urlFlag, &methodFlag, &headersFlag, &cookiesFlag, &dataFlag, &wordlistsFlag}
+	flags := [7]*Flag{&urlFlag, &methodFlag, &headersFlag, &cookiesFlag, &dataFlag, &wordlistsFlag, &threadsFlag}
 	flagMap := map[string]*Flag{
 		"-u": &urlFlag, "--url": &urlFlag,
 		"-X": &methodFlag, "--method": &methodFlag,
@@ -135,6 +141,7 @@ func parseCLI() ([]Website, error) {
 		"-c": &cookiesFlag, "--cookies": &cookiesFlag,
 		"-d": &dataFlag, "--data": &dataFlag,
 		"-w": &wordlistsFlag, "--wordlist": &wordlistsFlag,
+		"-t": &threadsFlag, "--threads": &threadsFlag,
 	}
 
 	// Read the arguments
@@ -162,7 +169,7 @@ func parseCLI() ([]Website, error) {
 
 		flag.exists = true
 	}
-
+	//RESUMIR ISSO TAMBEM POSSIVELMENTE
 	for _, f := range flags[1:] { // Does not include urlArgs on pourpose
 		fixEmpty(f, urlAmount, f.name) // checks for flag.Exists, if not, append empty
 		f.exists = false
@@ -180,6 +187,11 @@ func parseCLI() ([]Website, error) {
 			return []Website{}, err
 		}
 		filterMethod(&methodFlag.parameter[i]) // Doesn't need error to be returned, worst case scenario, GET is used
+
+		threads, err := strconv.Atoi(threadsFlag.parameter[i])
+		if err != nil {
+			return []Website{}, err
+		}
 
 		// Parse keys into the headers, cookies, data and wordlists fields
 		for _, field := range fields {
@@ -242,6 +254,7 @@ func parseCLI() ([]Website, error) {
 							Headers: newHeaders,
 							Cookies: newCookies,
 							Data:    newData,
+							Threads: threads,
 						}
 						websites = append(websites, w)
 
@@ -256,6 +269,7 @@ func parseCLI() ([]Website, error) {
 				Headers: headers.pairs,
 				Cookies: cookies.pairs,
 				Data:    data.pairs,
+				Threads: threads,
 			}
 			websites = append(websites, w)
 
