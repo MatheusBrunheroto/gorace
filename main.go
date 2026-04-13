@@ -5,7 +5,6 @@ import (
 	"gorace/display"
 	"gorace/input"
 	"os"
-	"time"
 )
 
 // usage example: gorace -u 'https://website.com' -h '{header_name:header_value, h2_name:WORDLIST1}' -c '{WORDLIST2:WORDLIST3}' -t 50 --no-filter
@@ -37,12 +36,12 @@ func main() {
 
 	args := os.Args[:1]
 	requestSent := make(chan int)
-	go display.Progress(requestSent)
-	time.Sleep(1000000000)
+	go display.Display(requestSent)
+
 	// Reads the CLI inputs
 	websites, err := input.RunCLI()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err, "\nExiting...\n")
 		return
 	}
 
@@ -73,8 +72,7 @@ func main() {
 	}
 
 	for i := range 100 {
-		requestSent <- i
-		time.Sleep(10000000)
+		requestSent <- i + 1
 	}
 
 	//request.InitWorker(websites, mode)

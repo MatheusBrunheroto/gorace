@@ -64,8 +64,8 @@ func printAsciiArt(art []string, theme []string) {
 		}
 
 		fmt.Println(line)
-
 	}
+	fmt.Println("")
 }
 
 func readAsciiArt(arts *[][]string, path string) error {

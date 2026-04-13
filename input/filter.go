@@ -21,7 +21,7 @@ or 'KEY:VALUE' for -H is rejected.
 func splitSymbol(raw string, symbol string) (string, string, error) {
 	key := strings.SplitN(raw, symbol, 2)
 	if len(key) != 2 || key[0] == "" || key[1] == "" {
-		return "", "", errors.New("Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
+		return "", "", errors.New("[-] Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
 	}
 	key[0] = strings.TrimSpace(key[0])
 	key[1] = strings.TrimSpace(key[1])
@@ -62,20 +62,20 @@ func filterKeys(raw string, entry *[]Pair, delimiter string) error {
 func filterUrl(target *string) error {
 
 	if *target == "" {
-		return errors.New("No Website URL was informed (-U or --url)")
+		return errors.New("[-] No Website URL was informed (-U or --url)")
 	}
 	if strings.HasPrefix(*target, "-") {
-		return errors.New("Invalid URL for -U or --url -> " + *target)
+		return errors.New("[-] Invalid URL for -U or --url -> " + *target)
 	}
 
 	if !strings.HasPrefix(*target, "http://") && !strings.HasPrefix(*target, "https://") {
 		*target = "https://" + *target
-		fmt.Println("URL must start with http:// or https:// -> New url: " + *target)
+		fmt.Println("[!] URL must start with http:// or https:// -> New url: " + *target)
 	}
 
 	u, err := url.Parse(*target)
 	if err != nil || u.Host == "" {
-		return errors.New("invalid URL -> " + *target)
+		return errors.New("[-] Invalid URL -> " + *target)
 	}
 
 	return nil
@@ -86,7 +86,7 @@ func filterMethod(method *string) {
 	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"}
 
 	if *method == "" {
-		fmt.Println("No method informed (-X or --method), \"GET\" will be used...")
+		fmt.Println("[!] No method informed (-X or --method), \"GET\" will be used...")
 		*method = "GET"
 		return
 	}
@@ -95,7 +95,7 @@ func filterMethod(method *string) {
 
 	if strings.Contains(*method, " ") {
 		*method = strings.ReplaceAll(*method, " ", "")
-		fmt.Println("Method contains a SPACE character, removing...")
+		fmt.Println("[!] Method contains a SPACE character, removing...")
 	}
 
 	for _, m := range methods {
@@ -103,7 +103,7 @@ func filterMethod(method *string) {
 			return
 		}
 	}
-	fmt.Printf("Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", *method)
+	fmt.Printf("[!] Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", *method)
 
 	// COLOCAR REGEX
 }

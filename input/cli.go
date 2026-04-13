@@ -287,6 +287,8 @@ func RunCLI() ([]Website, error) {
 	if err != nil {
 		return []Website{}, err
 	}
+	fmt.Printf("[+] Input read successfully!\n\n")
+
 	return websites, nil
 
 }

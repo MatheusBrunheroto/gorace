@@ -31,7 +31,7 @@ func progressBar(sent int, total int, amount int) string {
 
 }
 
-func Progress(wordlist <-chan int) error {
+func Display(wordlist <-chan int) error {
 
 	size, err := handleAsciiArt()
 	if err != nil {
@@ -47,14 +47,12 @@ func Progress(wordlist <-chan int) error {
 		if !ok {
 			break
 		}
-		bar := progressBar(v, 99, size)
-		fmt.Printf("\r->%s [%d/100]", bar, v)
+		bar := progressBar(v, 100, size)
+		fmt.Printf("\r-> %s [%d/100]", bar, v)
 		//fmt.Println(v)
 
 	}
-	fmt.Println("\n")
-	fmt.Println("\n")
-	fmt.Println("\n")
+	fmt.Printf("\n\n\n\n")
 	// var total_workers pra usar ali em baixo
 
 	for {
