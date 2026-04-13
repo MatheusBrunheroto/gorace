@@ -11,55 +11,117 @@ import (
 	"sync"
 )
 
-func InitWorker(websites []input.Website, mode string) {
+func maxThreads(websites []input.Website) int {
+	n := 1
+	for _, w := range websites {
+		if w.Threads > n {
+			n = w.Threads
+		}
+	}
+	return n
+}
+func initChan(n int) []chan struct{} {
+	c := make([]chan struct{}, n) // Each chan here is a "thread"
+	for i := range c {
+		c[i] = make(chan struct{})
+	}
+	return c
+}
 
-	/*
-		if mode = cluesterbomb, começa tudo igual fodase
-		if mode = line, começa um depois do outro, manda um de um, depois uma bomba de threads to outro, etc
-	*/
-	var wg sync.WaitGroup
-	startChans := make([]chan struct{}, len(websites))
-	for i := range startChans {
-		startChans[i] = make(chan struct{})
+func normalWorker(start chan struct{}, website input.Website, wg *sync.WaitGroup) {
+	for range website.Threads {
+		wg.Go(func() { Worker(start, website, wg) })
+	}
+	close(start)
+}
+
+func roundWorker(start chan struct{}, websites []input.Website, wg *sync.WaitGroup) {
+	for _, w := range websites {
+		wg.Go(func() { Worker(start, w, wg) })
+	}
+	close(start)
+}
+
+func initNormal(websites []input.Website, isSequential bool) {
+
+	startChans := initChan(len(websites))
+	var cascateWg sync.WaitGroup
+
+	for i, w := range websites {
+
+		if isSequential {
+			var sequentialWg sync.WaitGroup
+			normalWorker(startChans[i], w, &sequentialWg)
+			sequentialWg.Wait()
+			continue
+		}
+		normalWorker(startChans[i], w, &cascateWg)
+
 	}
 
-	// Sequential mode makes n_threads requests for each url in sequence, doesn't start all requests together
+	if isSequential {
+		return
+	}
+	cascateWg.Wait()
 
-	// Waits for each url end to start other
-	switch mode {
-	case "sequential":
-		fmt.Println("a")
-	case "roundabout":
-		fmt.Println("a")
-		// paralel varias vezes
+}
 
-	case "cascade":
+func initRound(websites []input.Website, isSequential bool) {
 
-		for i, w := range websites {
-			fmt.Println(w.Threads)
-			for range w.Threads {
-				wg.Go(func() { Worker(startChans[i], w, &wg) })
-			}
-			close(startChans[i])
+	startChannels := initChan(maxThreads(websites))
+	var cascateWg sync.WaitGroup
+
+	for _, c := range startChannels {
+
+		if isSequential {
+			var sequentialWg sync.WaitGroup
+			roundWorker(c, websites, &sequentialWg)
+			sequentialWg.Wait()
+			continue
+
 		}
+		roundWorker(c, websites, &cascateWg)
 
-	default: // This is the default mode, group all the requests and fire them at the exact same moment
+	}
 
+	if isSequential {
+		return
+	} else {
+		cascateWg.Wait()
+	}
+
+}
+
+func InitWorker(websites []input.Website, mode string) {
+
+	switch mode {
+
+	// After N threads of an URL requests were sent to worker, waits for them to finish before starting next URL requests
+	case "sequential":
+		initNormal(websites, true)
+	// Same as sequential, but doesn't wait for its requests to finish before starting the next URL requests
+	case "cascade":
+		initNormal(websites, false)
+
+	// Sequential's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
+	case "round-sequential":
+		initRound(websites, true)
+	// Cascade's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
+	case "round-cascade":
+		initRound(websites, false)
+
+	// This is the default mode "flood", group all the requests and fire them at the exact same moment
+	default:
 		start := make(chan struct{})
+		var wg sync.WaitGroup
 		for _, w := range websites {
 			for range w.Threads {
 				wg.Go(func() { Worker(start, w, &wg) })
 			}
 		}
 		close(start)
-
-	}
-
-	// Intercale
-
-	// If there are 100 different jobs, and 20 threads for each, 2000 threads will be initialized
-
-	wg.Wait() // Wait for all the workers to be initialized, and start the requests at the same time
+		wg.Wait()
+	} // WG GO INTERNO PRA GERAR COISA, ESPERAR POR DENTRO, ALGO DO TIPO, E UM POR FORA SEI LA
 
 }
 

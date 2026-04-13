@@ -76,11 +76,9 @@ func fixEmpty(flag *Flag, urlAmount int, name string) error {
 
 		if strings.Contains(name, "--method") {
 			parameter = "GET"
-			fmt.Println("macaco")
 		}
 		if strings.Contains(name, "--threads") {
 			parameter = "1"
-			fmt.Println("gozando  merda")
 		}
 
 		flag.parameter = append(flag.parameter, parameter)
