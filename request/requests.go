@@ -33,7 +33,7 @@ func InitWorker(websites []input.Website, mode string) {
 		fmt.Println("a")
 		// paralel varias vezes
 
-	case "parallel":
+	case "cascade":
 
 		for i, w := range websites {
 			fmt.Println(w.Threads)
