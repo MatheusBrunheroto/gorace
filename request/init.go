@@ -5,6 +5,9 @@ import (
 	"sync"
 )
 
+type modular struct {
+}
+
 // Returns the largest thread amount inside "websites"
 func maxThreads(websites []input.Website) int {
 	n := 1
@@ -30,52 +33,51 @@ func initChan(n int) []chan struct{} {
 }
 
 /**/
-func normalWorker(start chan struct{}, wg *sync.WaitGroup, websites ...input.Website) {
+func normalWorker(progressChannel [2]chan int, start chan struct{}, wg *sync.WaitGroup, websites ...input.Website) {
 	website := websites[0]
 	for i := 0; i < website.Threads; i++ {
-		wg.Go(func() { Worker(start, website) })
+		wg.Go(func() { worker(progressChannel, start, website) })
 	}
 }
-func roundWorker(start chan struct{}, wg *sync.WaitGroup, websites ...input.Website) {
+func roundWorker(progressChannel [2]chan int, start chan struct{}, wg *sync.WaitGroup, websites ...input.Website) {
 	for _, w := range websites {
-		wg.Go(func() { Worker(start, w) })
+		wg.Go(func() { worker(progressChannel, start, w) })
 	}
 }
 
-func aux(start chan struct{}, isSequential bool,
-	init func(chan struct{}, *sync.WaitGroup, ...input.Website),
+func aux(progressChannel [2]chan int, start chan struct{}, isSequential bool,
+	init func([2]chan int, chan struct{}, *sync.WaitGroup, ...input.Website),
 	outerWg *sync.WaitGroup, websites ...input.Website) {
 
 	if isSequential {
-		var innerWg sync.WaitGroup         // Starts inside worker, waits after function
-		init(start, &innerWg, websites...) // Sequential use inner
+		var innerWg sync.WaitGroup                          // Starts inside worker, waits after function
+		init(progressChannel, start, &innerWg, websites...) // Sequential use inner
 		close(start)
 		innerWg.Wait()
 	} else {
-		init(start, outerWg, websites...) //
+		init(progressChannel, start, outerWg, websites...) //
 		close(start)
 	}
 
 }
 
-func generalInit(websites []input.Website, modes [2]bool) {
+func generalInit(progressChannel [2]chan int, websites []input.Website, modes [2]bool) {
 
 	isRound := modes[0]
 	isSequential := modes[1]
 
 	var outerWg sync.WaitGroup // CASCADE
-	// canal, sequencial, funcao, sites
 
 	if isRound {
 		startChannels := initChan(maxThreads(websites))
 		for i := range startChannels {
-			aux(startChannels[i], isSequential, roundWorker, &outerWg, websites...)
+			aux(progressChannel, startChannels[i], isSequential, roundWorker, &outerWg, websites...)
 		}
 
 	} else {
 		startChannels := initChan(len(websites))
 		for i := range websites {
-			aux(startChannels[i], isSequential, normalWorker, &outerWg, websites[i])
+			aux(progressChannel, startChannels[i], isSequential, normalWorker, &outerWg, websites[i])
 		}
 
 	}
@@ -88,27 +90,27 @@ func generalInit(websites []input.Website, modes [2]bool) {
 
 }
 
-func InitWorker(websites []input.Website, mode string) {
+func InitWorker(progressChannel [2]chan int, websites []input.Website, mode string) {
 
 	// This constants are intended to make it easier to see the init parameters below
-	ROUND, NORMAL := true, false
-	SEQUENTIAL, CASCADE := true, false
+	const ROUND, NORMAL bool = true, false
+	const SEQUENTIAL, CASCADE bool = true, false
 
 	switch mode {
 
 	// After N threads of an URL requests were sent to worker, waits for them to finish before starting next URL requests
 	case "sequential":
-		generalInit(websites, [2]bool{NORMAL, SEQUENTIAL})
+		generalInit(progressChannel, websites, [2]bool{NORMAL, SEQUENTIAL})
 	// Same as sequential, but doesn't wait for its requests to finish before starting the next URL requests
 	case "cascade":
-		generalInit(websites, [2]bool{NORMAL, CASCADE})
+		generalInit(progressChannel, websites, [2]bool{NORMAL, CASCADE})
 
 	// Sequential's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-sequential":
-		generalInit(websites, [2]bool{ROUND, SEQUENTIAL})
+		generalInit(progressChannel, websites, [2]bool{ROUND, SEQUENTIAL})
 	// Cascade's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-cascade":
-		generalInit(websites, [2]bool{ROUND, CASCADE})
+		generalInit(progressChannel, websites, [2]bool{ROUND, CASCADE})
 
 	// This is the default mode "flood", group all the requests and fire them at the exact same moment
 	default:
@@ -116,7 +118,7 @@ func InitWorker(websites []input.Website, mode string) {
 		var wg sync.WaitGroup
 		for _, w := range websites {
 			for range w.Threads {
-				wg.Go(func() { Worker(start, w) })
+				wg.Go(func() { worker(start, w) })
 			}
 		}
 		close(start)

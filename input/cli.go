@@ -3,7 +3,6 @@ package input
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -117,10 +116,9 @@ How parseCLI() works:
 	So flagMap["-u"] corresponds to the address of the urlArgs string array
 */
 
-func parseCLI() ([]Website, error) {
+func parseCLI(args []string) ([]Website, error) {
 
 	var websites []Website
-	args := os.Args[1:]
 
 	// Initializes all the flags
 	urlFlag := newFlag("-u || --url")
@@ -279,14 +277,39 @@ func parseCLI() ([]Website, error) {
 }
 
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
-func RunCLI() ([]Website, error) {
+func RunCLI(args []string) ([]Website, string, error) {
 
-	websites, err := parseCLI()
+	var mode string = "flood"
+	modes := []string{"sequential", "round-sequential", "cascade", "round-cascade", "flood"}
+	var modeExists bool = false
+
+	for i, flag := range args {
+
+		if flag == "-m" || flag == "--mode" {
+
+			verifyMode := args[i+1]
+			for _, m := range modes {
+
+				if verifyMode == m {
+					modeExists = true
+					mode = verifyMode
+					break
+				}
+
+			}
+
+		}
+	}
+	if !modeExists {
+		fmt.Println("[!] Mode wasn't identified, using \"flood\" as default...")
+	}
+
+	websites, err := parseCLI(args)
 	if err != nil {
-		return []Website{}, err
+		return []Website{}, "", err
 	}
 	fmt.Printf("[+] Input read successfully!\n\n")
 
-	return websites, nil
+	return websites, mode, nil
 
 }

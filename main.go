@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gorace/display"
 	"gorace/input"
+	"gorace/request"
 	"os"
 )
 
@@ -28,56 +29,36 @@ import (
 
 		-t --threads, number of workers or agents to be used in the test, default=50
 
+go main.go -u '1.com' --threads 10 -u '2.com' --threads 20
+
+
 */
 
 // Starts output
 
 func main() {
 
-	args := os.Args[:1]
-	requestSent := make(chan int)
-	go display.Display(requestSent)
+	// fazer array de canais, um pra avisar que a wordlist ta pronta e mandar a quantidade de palavras, outro pra sent e ouj ro pra completed
+	//progressChannel := make(chan int, 2)
+	progressChannel := [3]chan int{make(chan int), make(chan int), make(chan int)}
+	display.Display(progressChannel) // call for the amount of words too
 
-	// Reads the CLI inputs
-	websites, err := input.RunCLI()
+	// Reads and filter the CLI inputs
+	websites, mode, err := input.RunCLI(os.Args[1:])
 	if err != nil {
 		fmt.Println(err, "\nExiting...\n")
 		return
 	}
-
-	_ = websites
-	/*for _, w := range websites {
-		fmt.Println(w)
-	}*/
-
-	// Read the desired mode
-	var mode string = "flood"
-	modes := []string{"sequential", "cascade", "flood"}
-
-	for i := range args {
-		if args[i] == "-m" || args[i] == "--mode" {
-			mode = args[i+1]
-			break
-		}
+	var totalRequests int = 0
+	for _, w := range websites {
+		totalRequests += w.Threads
 	}
-	var modeExists bool = false
-	for _, m := range modes {
-		if mode == m {
-			modeExists = true
-		}
-	}
-	if !modeExists {
-		mode = "flood"
-		fmt.Println("Unable to determine mode \"" + mode + "\" using \"flood\" as default...")
-	}
+	progressChannel[0] <- totalRequests // Initializes progress bar inside display.go
 
-	for i := range 100 {
-		requestSent <- i + 1
-	}
+	request.InitWorker(progressChannel[:1], websites, mode)
 
-	//request.InitWorker(websites, mode)
-	close(requestSent)
 	fmt.Println("\n")
 }
 
 // TODO, MODO de input direto de wordlist, MODOS DE rodar,
+// AO inves de retornar os erros e tentar fazer funcionar denovo basta colocar o panic ao inves do erros.New

@@ -31,39 +31,36 @@ func progressBar(sent int, total int, amount int) string {
 
 }
 
-func Display(wordlist <-chan int) error {
+func listener(progressChannel [3]chan int, barSize int) {
 
-	size, err := handleAsciiArt()
+	total := <-progressChannel[0]
+	sentChannel := progressChannel[1]
+	completedChannel := progressChannel[2]
+
+	for {
+		sent, s := <-sentChannel
+		completed, c := <-completedChannel
+		if !s || !c {
+			break
+		}
+		bar := progressBar(completed, total, barSize)
+		remaining := total - completed
+		fmt.Printf("\r%s -> Sent: [%d] Complete: [%d] Remaining:\\nn", bar, sent, completed, remaining)
+	}
+
+}
+
+func Display(progressChannel [3]chan int) error {
+
+	barSize, err := handleAsciiArt()
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	go listener(progressChannel, barSize)
 	//fmt.Println("\n")
 	// sent total size
 	//fmt.Println(size)
-
-	for {
-
-		v, ok := <-wordlist
-		if !ok {
-			break
-		}
-		bar := progressBar(v, 100, size)
-		fmt.Printf("\r-> %s [%d/100]", bar, v)
-		//fmt.Println(v)
-
-	}
-	fmt.Printf("\n\n\n\n")
-	// var total_workers pra usar ali em baixo
-
-	for {
-
-		v, ok := <-wordlist
-		if !ok {
-			break
-		}
-
-		fmt.Printf("\rProgress -> Sent: [%d] Complete: [%d]\\nn", v, v)
-	}
 
 	return nil
 }
