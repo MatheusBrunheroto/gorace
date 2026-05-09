@@ -2,16 +2,18 @@ package request
 
 import (
 	"fmt"
-	"gorace/display"
 	"gorace/input"
+	"gorace/log"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 // Converts data to put bellow headers, the request body
-func getBody(rawData []input.Pair) *strings.Reader {
+func getBody(rawData []input.Pair) io.Reader {
 	var hasData bool = false
 
 	data := url.Values{}
@@ -40,7 +42,7 @@ func missingHeaders(request *http.Request) {
 func buildRequest(w input.Website) (*http.Request, error) {
 
 	// DATA - Not mandatory, but the only way to insert in the request is by creating a body
-	request, err := http.NewRequest(w.Method, w.Url, getBody(w.Data))
+	request, err := http.NewRequest(w.Method, w.Url, nil)
 	if err != nil {
 		return &http.Request{}, err
 	}
@@ -69,14 +71,49 @@ func buildRequest(w input.Website) (*http.Request, error) {
 
 }
 
+func verifyExistence(w input.Website) bool {
+	
+
+	return request
+} // É UMA GO FUNCTION, 
+func getBuiltRequests(){
+	
+	hashes := make(map[string]*http.Request) // NA VERDADE AQUI SERIA UM UM HASH PRA UM WEBSITE
+
+	for {
+
+		requestedHash := <-hashChan		
+		for h, r := range hashes{
+			if h == requestedHash {
+				chan <- r
+			}
+
+		}
+		
+	}
+
+
+}
+
 // Always ends up doing N threads to the first website, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(progressChannel display.Progress, start <-chan struct{}, w input.Website) {
+func worker(progressChannel log.Progress, start <-chan struct{}, w input.Website) {
 
 	//		largest :=
 	// xSlice(w.Headers, w.Cookies, w.Data)
 	// O REQUEST É FEITO MULTIPLAS VEZES, TALVEZ ARRUMAR ISSO COM O request.clone
-	request, err := buildRequest(w)
+	if exists := verifyExistence() {
+
+	}
+	else{
+		request, err := buildRequest(w)
+	}
+	websiteCode := fmt.Sprintf("%s%s%s%s%s%d", w.Url, w.Method, w.Headers, w.Cookies, w.Data, w.Threads)
+	hash := xxhash.Sum64String(websiteCode)
+
+	fmt.Printf("%x\n", hash)
+
+	
 	<-start
 	progressChannel.Sent <- 1
 

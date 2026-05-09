@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gorace/display"
 	"gorace/input"
+	"gorace/log"
 	"gorace/request"
 	"os"
 )
@@ -29,7 +30,7 @@ import (
 
 		-t --threads, number of workers or agents to be used in the test, default=50
 
-go main.go -u '1.com' --threads 10 -u '2.com' --threads 20
+go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 
 */
@@ -38,13 +39,14 @@ go main.go -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
-	progress := display.Progress{
+	progress := log.Progress{
 		Total:     make(chan int),
 		Sent:      make(chan int),
 		Completed: make(chan int),
+		Finished:  make(chan int),
+		Log:       make(chan string),
 	}
-
-	display.Display(progress) // call for the amount of words too
+	display.Display(progress)
 
 	// Reads and filter the CLI inputs
 	websites, mode, err := input.RunCLI(os.Args[1:])
@@ -59,7 +61,11 @@ func main() {
 	progress.Total <- totalRequests // Initializes progress bar inside display.go
 
 	request.InitWorker(progress, websites, mode)
-	fmt.Println("")
+	fmt.Printf("\n\n")
+
+	// Waits for output to finish
+	<-progress.Finished
+
 }
 
 // TODO, MODO de input direto de wordlist, MODOS DE rodar,

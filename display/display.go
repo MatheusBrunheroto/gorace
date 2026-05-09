@@ -34,7 +34,7 @@ func progressBar(sent int, total int, amount int) string {
 
 func listener(progressChannel log.Progress, barSize int) {
 
-	total := <-progressChannel.Total
+	total := <-progressChannel.Total // Forces listener to stay off until end of wordlist reading
 	sentChannel := progressChannel.Sent
 	completedChannel := progressChannel.Completed
 
@@ -45,14 +45,16 @@ func listener(progressChannel log.Progress, barSize int) {
 		select {
 		case _, ok := <-sentChannel:
 			if !ok {
-				return
+				break
 			}
+			fmt.Println("SENT")
 			sent++
 
 		case _, ok := <-completedChannel:
 			if !ok {
-				return
+				break
 			}
+			fmt.Println("COMPLETE")
 			completed++
 		}
 
@@ -60,9 +62,14 @@ func listener(progressChannel log.Progress, barSize int) {
 
 		remaining := total - completed
 		// sobe pra linha da barra
-		fmt.Print("\033[A")
 
-		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: %d", bar, sent, completed, remaining)
+		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, completed, remaining)
+
+		if completed == total {
+			progressChannel.Finished <- 1
+			return
+		}
+
 	}
 
 }

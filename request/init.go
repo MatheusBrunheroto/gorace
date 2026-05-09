@@ -1,8 +1,8 @@
 package request
 
 import (
-	"gorace/display"
 	"gorace/input"
+	"gorace/log"
 	"sync"
 )
 
@@ -24,7 +24,7 @@ Create N channels:
 */
 
 /**/
-func runWorkers(progressChannel display.Progress, websites []input.Website, round bool, sequential bool) {
+func runWorkers(progressChannel log.Progress, websites []input.Website, round bool, sequential bool) {
 	var outerWg sync.WaitGroup
 
 	var loops int
@@ -66,7 +66,7 @@ func runWorkers(progressChannel display.Progress, websites []input.Website, roun
 	}
 }
 
-func InitWorker(progressChannel display.Progress, websites []input.Website, mode string) {
+func InitWorker(progressChannel log.Progress, websites []input.Website, mode string) {
 
 	// This constants are intended to make it easier to see the init parameters below
 	const ROUND, NORMAL bool = true, false
