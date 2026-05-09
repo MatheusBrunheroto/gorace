@@ -2,6 +2,7 @@ package display
 
 import (
 	"fmt"
+	"gorace/log"
 )
 
 // PEGA LINHA DO MAIS DE BAIXO
@@ -31,36 +32,49 @@ func progressBar(sent int, total int, amount int) string {
 
 }
 
-func listener(progressChannel [3]chan int, barSize int) {
+func listener(progressChannel log.Progress, barSize int) {
 
-	total := <-progressChannel[0]
-	sentChannel := progressChannel[1]
-	completedChannel := progressChannel[2]
+	total := <-progressChannel.Total
+	sentChannel := progressChannel.Sent
+	completedChannel := progressChannel.Completed
+
+	var sent, completed int
 
 	for {
-		sent, s := <-sentChannel
-		completed, c := <-completedChannel
-		if !s || !c {
-			break
+
+		select {
+		case _, ok := <-sentChannel:
+			if !ok {
+				return
+			}
+			sent++
+
+		case _, ok := <-completedChannel:
+			if !ok {
+				return
+			}
+			completed++
 		}
+
 		bar := progressBar(completed, total, barSize)
+
 		remaining := total - completed
-		fmt.Printf("\r%s -> Sent: [%d] Complete: [%d] Remaining:\\nn", bar, sent, completed, remaining)
+		// sobe pra linha da barra
+		fmt.Print("\033[A")
+
+		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: %d", bar, sent, completed, remaining)
 	}
 
 }
 
-func Display(progressChannel [3]chan int) error {
+func Display(progressChannel log.Progress) error {
 
 	barSize, err := handleAsciiArt()
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	go listener(progressChannel, barSize)
-	//fmt.Println("\n")
-	// sent total size
-	//fmt.Println(size)
+	go listener(progressChannel, barSize+2)
 
 	return nil
 }

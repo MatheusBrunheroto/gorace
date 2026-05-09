@@ -38,10 +38,13 @@ go main.go -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
-	// fazer array de canais, um pra avisar que a wordlist ta pronta e mandar a quantidade de palavras, outro pra sent e ouj ro pra completed
-	//progressChannel := make(chan int, 2)
-	progressChannel := [3]chan int{make(chan int), make(chan int), make(chan int)}
-	display.Display(progressChannel) // call for the amount of words too
+	progress := display.Progress{
+		Total:     make(chan int),
+		Sent:      make(chan int),
+		Completed: make(chan int),
+	}
+
+	display.Display(progress) // call for the amount of words too
 
 	// Reads and filter the CLI inputs
 	websites, mode, err := input.RunCLI(os.Args[1:])
@@ -53,11 +56,10 @@ func main() {
 	for _, w := range websites {
 		totalRequests += w.Threads
 	}
-	progressChannel[0] <- totalRequests // Initializes progress bar inside display.go
+	progress.Total <- totalRequests // Initializes progress bar inside display.go
 
-	request.InitWorker(progressChannel[:1], websites, mode)
-
-	fmt.Println("\n")
+	request.InitWorker(progress, websites, mode)
+	fmt.Println("")
 }
 
 // TODO, MODO de input direto de wordlist, MODOS DE rodar,

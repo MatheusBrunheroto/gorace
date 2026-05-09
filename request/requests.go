@@ -2,6 +2,7 @@ package request
 
 import (
 	"fmt"
+	"gorace/display"
 	"gorace/input"
 	"io"
 	"net/http"
@@ -52,8 +53,6 @@ func buildRequest(w input.Website) (*http.Request, error) {
 		request.Header.Set(h.Key, h.Value)
 	}
 	missingHeaders(request)
-
-	fmt.Println(request.UserAgent())
 	//	fmt.Println(request)
 	// melhorar o filtro desses valores
 
@@ -72,34 +71,36 @@ func buildRequest(w input.Website) (*http.Request, error) {
 
 // Always ends up doing N threads to the first website, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(progressChannel [2]chan int, start <-chan struct{}, w input.Website) {
+func worker(progressChannel display.Progress, start <-chan struct{}, w input.Website) {
 
-	fmt.Println(w.Url, "Iniciado")
 	//		largest :=
 	// xSlice(w.Headers, w.Cookies, w.Data)
 	// O REQUEST É FEITO MULTIPLAS VEZES, TALVEZ ARRUMAR ISSO COM O request.clone
 	request, err := buildRequest(w)
 	<-start
-	progressChannel[0] <- progressChannel[0] + 1
+	progressChannel.Sent <- 1
 
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	if err != nil {
-		panic(err)
+		fmt.Println("\033[K ASS")
+		progressChannel.Completed <- 1
+		return
 	}
 	respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		progressChannel.Completed <- 1
+		return
 	}
 	resp.Body.Close()
 
-	fmt.Println(resp.Status, resp.ContentLength)
+	//fmt.Println(resp.Status, resp.ContentLength)
 	if !strings.Contains(string(respbody), "Invalid username or password.") {
-		fmt.Println(w.Data, resp.Header)
+		//	fmt.Println(w.Data, resp.Header)
 	}
 	//We Read the response body on the line below.
-	fmt.Println(w.Url, "Finalizado")
-	progressChannel[1] <- progressChannel[1] + 1
+	progressChannel.Completed <- 1
 
 }
 
