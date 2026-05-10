@@ -32,25 +32,26 @@ func progressBar(sent int, total int, amount int) string {
 
 }
 
-func listener(progressChannel log.Progress, barSize int) {
-
-	total := <-progressChannel.Total // Forces listener to stay off until end of wordlist reading
-	sentChannel := progressChannel.Sent
-	completedChannel := progressChannel.Completed
-
+func listener(
+	barSize int,
+	progress log.ProgressReader, finish chan int,
+) {
 	var sent, completed int
 
-	for {
+	total := <-progress.Total // Forces listener to stay off until end of wordlist reading
+	s := progress.Sent
+	c := progress.Completed
 
+	for {
 		select {
-		case _, ok := <-sentChannel:
+		case _, ok := <-s:
 			if !ok {
 				break
 			}
 			fmt.Println("SENT")
 			sent++
 
-		case _, ok := <-completedChannel:
+		case _, ok := <-c:
 			if !ok {
 				break
 			}
@@ -66,22 +67,20 @@ func listener(progressChannel log.Progress, barSize int) {
 		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, completed, remaining)
 
 		if completed == total {
-			progressChannel.Finished <- 1
+			finish <- 1
 			return
 		}
-
 	}
-
 }
 
-func Display(progressChannel log.Progress) error {
+func Display(progress log.ProgressReader, finish chan int) error {
 
 	barSize, err := handleAsciiArt()
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	go listener(progressChannel, barSize+2)
+	go listener(barSize+2, progress, finish) // +2 for some reason fixes a lot of imprecisions
 
 	return nil
 }

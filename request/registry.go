@@ -25,8 +25,8 @@ func getRequest(hash uint64, registryChan chan<- RegistryOp) *http.Request {
 		Hash:      hash,
 		Request:   nil,
 		ReplyChan: reply,
-	} // Send hash to registry, if exists, return its request
-	return <-reply
+	}
+	return <-reply // Reply could be either nil or the request, this is verified back in the worker.go
 }
 func insertRequest(hash uint64, request *http.Request, registryChan chan<- RegistryOp) {
 	registryChan <- RegistryOp{

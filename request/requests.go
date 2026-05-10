@@ -1,14 +1,18 @@
 package request
 
 import (
-	"fmt"
 	"gorace/input"
-	"gorace/log"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 )
+
+func missingHeaders(request *http.Request) {
+	if request.UserAgent() == "" {
+		request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	}
+}
 
 // Converts data to put bellow headers, the request body
 func getBody(rawData []input.Pair) io.Reader {
@@ -31,16 +35,10 @@ func getBody(rawData []input.Pair) io.Reader {
 	return body
 }
 
-func missingHeaders(request *http.Request) {
-	if request.UserAgent() == "" {
-		request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-	}
-}
-
 func buildRequest(w input.Website) (*http.Request, error) {
 
 	// DATA - Not mandatory, but the only way to insert in the request is by creating a body
-	request, err := http.NewRequest(w.Method, w.Url, nil)
+	request, err := http.NewRequest(w.Method, w.Url, nil) // get body vem aqui
 	if err != nil {
 		return &http.Request{}, err
 	}
@@ -66,49 +64,6 @@ func buildRequest(w input.Website) (*http.Request, error) {
 
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return request, nil
-
-}
-
-// Always ends up doing N threads to the first website, and N for the other
-// Receives a copy, so there is no need to thread lock
-func worker(progressChans log.Progress, start <-chan struct{}, w input.Website) {
-
-	var err error
-	// xSlice(w.Headers, w.Cookies, w.Data)
-	// O REQUEST É FEITO MULTIPLAS VEZES, TALVEZ ARRUMAR ISSO COM O request.clone
-	hash := computeHash(w)
-	request := getRequest(hash, registryChan)
-	if request == nil {
-		request, err = buildRequest(w)
-		if err != nil {
-			return
-		}
-		insertRequest(hash, request, entryChan)
-	}
-
-	<-start
-	progressChans.Sent <- 1
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		progressChans.Completed <- 1
-		return
-	}
-	respbody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		progressChans.Completed <- 1
-		return
-	}
-	resp.Body.Close()
-
-	//fmt.Println(resp.Status, resp.ContentLength)
-	if !strings.Contains(string(respbody), "Invalid username or password.") {
-		//	fmt.Println(w.Data, resp.Header)
-	}
-	//We Read the response body on the line below.
-	progressChans.Completed <- 1
 
 }
 

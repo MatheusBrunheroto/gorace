@@ -39,19 +39,23 @@ go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
-	registryChan := make(chan request.RegistryStruct)
-	go request.Registry(registryChan)
+	// This is a memory that runs with the code, avoiding buildRequest to generate the same request multiple times
+	registryChan := make(chan request.RegistryOp)
+	go request.RunRegistry(registryChan)
 
+	/* The progress channel is used inside the initWorker
+	- Inside Display, {Total, Sent, Completed, Finished} are read-only channels
+	- Inside InitWorkers
+	*/
 	progress := log.Progress{
 		Total:     make(chan int),
 		Sent:      make(chan int),
 		Completed: make(chan int),
-		Finished:  make(chan int),
-		Log:       make(chan string),
 	}
-	display.Display(progress)
+	displayFinished := make(chan int)
+	display.Display(progress.Reader(), displayFinished)
 
-	// Reads and filter the CLI inputs
+	// Read and filter the CLI inputs
 	websites, mode, err := input.RunCLI(os.Args[1:])
 	if err != nil {
 		fmt.Println(err, "\nExiting...\n")
@@ -61,13 +65,13 @@ func main() {
 	for _, w := range websites {
 		totalRequests += w.Threads
 	}
-	progress.Total <- totalRequests // Initializes progress bar inside display.go
+	progress.Total <- totalRequests // Initializes progress bar inside Display
 
-	request.InitWorker(progress, websites, mode)
+	request.InitWorkers(websites, mode, progress.Writer())
 	fmt.Printf("\n\n")
 
 	// Waits for output to finish
-	<-progress.Finished
+	<-displayFinished
 
 }
 
