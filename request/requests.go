@@ -71,29 +71,7 @@ func buildRequest(w input.Website) (*http.Request, error) {
 
 }
 
-func verifyExistence(w input.Website) bool {
-	
 
-	return request
-} // É UMA GO FUNCTION, 
-func getBuiltRequests(){
-	
-	hashes := make(map[string]*http.Request) // NA VERDADE AQUI SERIA UM UM HASH PRA UM WEBSITE
-
-	for {
-
-		requestedHash := <-hashChan		
-		for h, r := range hashes{
-			if h == requestedHash {
-				chan <- r
-			}
-
-		}
-		
-	}
-
-
-}
 
 // Always ends up doing N threads to the first website, and N for the other
 // Receives a copy, so there is no need to thread lock
