@@ -12,8 +12,9 @@ func requestExists() {
 
 }
 
-func lookupRequest() {
+func lookupRequest(hashChannel chan string) {
 
+	s
 	hashes := make(map[string]*http.Request) // NA VERDADE AQUI SERIA UM UM HASH PRA UM WEBSITE
 	for {
 
@@ -29,24 +30,24 @@ func lookupRequest() {
 
 }
 
-func requestRegistry() {
+func requestRegistry(requestChannel chan *http.Request) {
 
-	hash := make(chan string) // CHANNEL NO NOME
-	request := make(chan *http.Request)
 	hashMap := make(map[string]*http.Request) // hash -> url + ... + threads
 
 	for {
 		select {
-		case x := <-input:
-
-		case y := <-request:
-			h, exist := hashMap[y]
-			if !exist {
-				// ADD
-			} else {
-				// RETURN
+		case candidateHash := <-hashChannel:
+			_, exist := hashMap[candidateHash]
+			if !exist{
+				hashMap[candidateHash] = // URL
 			}
 
+		case requestedHash := <-requestChannel:
+
+			h, exist := hashMap[requestedHash]
+			if exist {
+				// RETURN
+			}
 			output <- result
 		}
 
