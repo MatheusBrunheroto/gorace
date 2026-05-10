@@ -41,6 +41,8 @@ go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
+	cacheChan := make(chan cache.Operation, 100)
+	go cache.Run(cacheChan)
 	/* The progress channel is used inside the initWorker
 	- Inside Display, {Total, Sent, Completed, Finished} are read-only channels
 	- Inside InitWorkers
@@ -50,7 +52,7 @@ func main() {
 		Sent:      make(chan int),
 		Completed: make(chan int),
 	}
-	displayFinished := make(chan struct{})
+	displayFinished := make(chan struct{}, 1)
 	display.Display(progress.Reader(), displayFinished)
 
 	// Read and filter the CLI inputs
@@ -59,26 +61,17 @@ func main() {
 		fmt.Println(err, "\nExiting...\n")
 		return
 	}
-	var totalRequests int = 0
-	for _, w := range websites {
-		totalRequests += w.Threads
-	}
-	progress.Total <- totalRequests // Initializes progress bar inside Display
 
 	// This is a memory that runs with the code, avoiding buildRequest to generate the same request multiple times
-	cacheChan := make(chan cache.Operation)
-	go cache.Run(cacheChan)
+
 	workerChans := request.WorkerChans{
 		Progress:  progress.Writer(),
 		CacheChan: cacheChan,
 	}
-
 	request.InitWorkers(websites, mode, workerChans)
-
+	// ADD val padrao de threads pra 0
 	fmt.Printf("\n\n")
-
-	// Waits for output to finish
-	<-displayFinished
+	<-displayFinished // Waits for display output to finish
 
 }
 

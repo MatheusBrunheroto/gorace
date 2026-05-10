@@ -15,6 +15,13 @@ func maxThreads(websites []input.Website) int {
 	}
 	return n
 }
+func totalThreads(websites []input.Website) int {
+	n := 0
+	for _, w := range websites {
+		n += w.Threads
+	}
+	return n
+}
 
 /*
 Create N channels:
@@ -29,8 +36,10 @@ func runWorkers(websites []input.Website, round bool, sequential bool, ch Worker
 	var loops int
 	if round {
 		loops = maxThreads(websites)
+		ch.Progress.Total <- loops * len(websites) // EXPLICAR MELHOR O QUE ISSO FAZ, MANDA PRO TOTAL QUE TA ESPERANDO NO DISPLAY'
 	} else {
 		loops = len(websites)
+		ch.Progress.Total <- totalThreads(websites)
 	}
 
 	for i := 0; i < loops; i++ {
@@ -67,7 +76,7 @@ func runWorkers(websites []input.Website, round bool, sequential bool, ch Worker
 
 func InitWorkers(websites []input.Website, mode string, ch WorkerChans) {
 
-	// This constants are intended to make it easier to see the init parameters below
+	// These constants are intended to make it easier to see the init parameters below
 	const ROUND, NORMAL bool = true, false
 	const SEQUENTIAL, CASCADE bool = true, false
 

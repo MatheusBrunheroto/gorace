@@ -5,16 +5,13 @@ import (
 	"gorace/log"
 )
 
-// PEGA LINHA DO MAIS DE BAIXO
 func progressBar(sent int, total int, amount int) string {
 
-	// total * sent_percentage = 100 * sent
 	s := float32(sent)
 	t := float32(total)
 	a := float32(amount)
 
 	percentage := (100 * s) / t
-	//fmt.Println(percentage)
 	var bar string = "["
 
 	i := float32(1)
@@ -43,14 +40,12 @@ func listener(barSize int, progress log.ProgressReader, finished chan<- struct{}
 			if !ok {
 				break
 			}
-			fmt.Println("SENT")
 			sent++
 
 		case _, ok := <-progress.Completed:
 			if !ok {
 				break
 			}
-			fmt.Println("COMPLETE")
 			completed++
 		}
 
