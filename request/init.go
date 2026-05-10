@@ -2,7 +2,6 @@ package request
 
 import (
 	"gorace/input"
-	"gorace/log"
 	"sync"
 )
 
@@ -24,7 +23,7 @@ Create N channels:
 */
 
 /**/
-func runWorkers(websites []input.Website, round bool, sequential bool, progress log.ProgressWriter) {
+func runWorkers(websites []input.Website, round bool, sequential bool, ch WorkerChans) {
 	var outerWg sync.WaitGroup
 
 	var loops int
@@ -45,12 +44,12 @@ func runWorkers(websites []input.Website, round bool, sequential bool, progress 
 
 		if round {
 			for _, w := range websites {
-				currentWg.Go(func() { worker(start, w, progress) })
+				currentWg.Go(func() { worker(start, w, ch) })
 			}
 		} else {
 			w := websites[i]
 			for t := 0; t < w.Threads; t++ {
-				currentWg.Go(func() { worker(start, w, progress) })
+				currentWg.Go(func() { worker(start, w, ch) })
 			}
 		}
 
@@ -66,7 +65,7 @@ func runWorkers(websites []input.Website, round bool, sequential bool, progress 
 	}
 }
 
-func InitWorkers(websites []input.Website, mode string, progress log.ProgressWriter) {
+func InitWorkers(websites []input.Website, mode string, ch WorkerChans) {
 
 	// This constants are intended to make it easier to see the init parameters below
 	const ROUND, NORMAL bool = true, false
@@ -76,17 +75,17 @@ func InitWorkers(websites []input.Website, mode string, progress log.ProgressWri
 
 	// After N threads of an URL requests were sent to worker, waits for them to finish before starting next URL requests
 	case "sequential":
-		runWorkers(websites, NORMAL, SEQUENTIAL, progress)
+		runWorkers(websites, NORMAL, SEQUENTIAL, ch)
 	// Same as sequential, but doesn't wait for its requests to finish before starting the next URL requests
 	case "cascade":
-		runWorkers(websites, NORMAL, CASCADE, progress)
+		runWorkers(websites, NORMAL, CASCADE, ch)
 
 	// Sequential's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-sequential":
-		runWorkers(websites, ROUND, SEQUENTIAL, progress)
+		runWorkers(websites, ROUND, SEQUENTIAL, ch)
 	// Cascade's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-cascade":
-		runWorkers(websites, ROUND, CASCADE, progress)
+		runWorkers(websites, ROUND, CASCADE, ch)
 
 	// This is the default mode "flood", group all the requests and fire them at the exact same moment
 	default:
@@ -94,7 +93,7 @@ func InitWorkers(websites []input.Website, mode string, progress log.ProgressWri
 		var wg sync.WaitGroup
 		for _, w := range websites {
 			for range w.Threads {
-				wg.Go(func() { worker(start, w, progress) })
+				wg.Go(func() { worker(start, w, ch) })
 			}
 		}
 		close(start)

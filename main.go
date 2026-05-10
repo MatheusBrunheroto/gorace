@@ -6,6 +6,8 @@ import (
 	"gorace/input"
 	"gorace/log"
 	"gorace/request"
+	"gorace/request/cache"
+
 	"os"
 )
 
@@ -39,10 +41,6 @@ go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
-	// This is a memory that runs with the code, avoiding buildRequest to generate the same request multiple times
-	registryChan := make(chan request.RegistryOp)
-	go request.RunRegistry(registryChan)
-
 	/* The progress channel is used inside the initWorker
 	- Inside Display, {Total, Sent, Completed, Finished} are read-only channels
 	- Inside InitWorkers
@@ -52,7 +50,7 @@ func main() {
 		Sent:      make(chan int),
 		Completed: make(chan int),
 	}
-	displayFinished := make(chan int)
+	displayFinished := make(chan struct{})
 	display.Display(progress.Reader(), displayFinished)
 
 	// Read and filter the CLI inputs
@@ -67,7 +65,16 @@ func main() {
 	}
 	progress.Total <- totalRequests // Initializes progress bar inside Display
 
-	request.InitWorkers(websites, mode, progress.Writer())
+	// This is a memory that runs with the code, avoiding buildRequest to generate the same request multiple times
+	cacheChan := make(chan cache.Operation)
+	go cache.Run(cacheChan)
+	workerChans := request.WorkerChans{
+		Progress:  progress.Writer(),
+		CacheChan: cacheChan,
+	}
+
+	request.InitWorkers(websites, mode, workerChans)
+
 	fmt.Printf("\n\n")
 
 	// Waits for output to finish
