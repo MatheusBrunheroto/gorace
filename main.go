@@ -39,6 +39,9 @@ go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
+	registryChan := make(chan request.RegistryStruct)
+	go request.Registry(registryChan)
+
 	progress := log.Progress{
 		Total:     make(chan int),
 		Sent:      make(chan int),

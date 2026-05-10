@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/cespare/xxhash/v2"
 )
 
 // Converts data to put bellow headers, the request body
@@ -71,41 +69,36 @@ func buildRequest(w input.Website) (*http.Request, error) {
 
 }
 
-
-
 // Always ends up doing N threads to the first website, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(progressChannel log.Progress, start <-chan struct{}, w input.Website) {
+func worker(progressChans log.Progress, start <-chan struct{}, w input.Website) {
 
-	//		largest :=
+	var err error
 	// xSlice(w.Headers, w.Cookies, w.Data)
 	// O REQUEST É FEITO MULTIPLAS VEZES, TALVEZ ARRUMAR ISSO COM O request.clone
-	if exists := verifyExistence() {
-
+	hash := computeHash(w)
+	request := getRequest(hash, registryChan)
+	if request == nil {
+		request, err = buildRequest(w)
+		if err != nil {
+			return
+		}
+		insertRequest(hash, request, entryChan)
 	}
-	else{
-		request, err := buildRequest(w)
-	}
-	websiteCode := fmt.Sprintf("%s%s%s%s%s%d", w.Url, w.Method, w.Headers, w.Cookies, w.Data, w.Threads)
-	hash := xxhash.Sum64String(websiteCode)
 
-	fmt.Printf("%x\n", hash)
-
-	
 	<-start
-	progressChannel.Sent <- 1
+	progressChans.Sent <- 1
 
 	client := &http.Client{}
-	resp, err := client.Do(request)
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("\033[K ASS")
-		progressChannel.Completed <- 1
+		progressChans.Completed <- 1
 		return
 	}
 	respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-		progressChannel.Completed <- 1
+		progressChans.Completed <- 1
 		return
 	}
 	resp.Body.Close()
@@ -115,7 +108,7 @@ func worker(progressChannel log.Progress, start <-chan struct{}, w input.Website
 		//	fmt.Println(w.Data, resp.Header)
 	}
 	//We Read the response body on the line below.
-	progressChannel.Completed <- 1
+	progressChans.Completed <- 1
 
 }
 
