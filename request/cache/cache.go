@@ -17,7 +17,7 @@ func Get(hash uint64, ch chan<- Operation) *http.Request {
 		Request:   nil,
 		ReplyChan: reply,
 	}
-	return <-reply // Reply could be either nil or the request, this is verified back in the worker.go
+	return <-reply // Reply could be either nil or the request, this is verified back in worker.go
 }
 func Insert(hash uint64, request *http.Request, ch chan<- Operation) {
 	ch <- Operation{

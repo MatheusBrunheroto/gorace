@@ -8,30 +8,35 @@ type LogMessage struct {
 type Progress struct {
 	Total     chan int
 	Sent      chan int
-	Completed chan int
+	Succeeded chan int
+	Failed    chan int
 }
 type ProgressReader struct {
 	Total     <-chan int
 	Sent      <-chan int
-	Completed <-chan int
+	Succeeded <-chan int
+	Failed    <-chan int
 }
 type ProgressWriter struct {
 	Total     chan<- int
 	Sent      chan<- int
-	Completed chan<- int
+	Succeeded chan<- int
+	Failed    chan<- int
 }
 
 func (p Progress) Reader() ProgressReader {
 	return ProgressReader{
 		Total:     p.Total,
 		Sent:      p.Sent,
-		Completed: p.Completed,
+		Succeeded: p.Succeeded,
+		Failed:    p.Failed,
 	}
 }
 func (p Progress) Writer() ProgressWriter {
 	return ProgressWriter{
 		Total:     p.Total,
 		Sent:      p.Sent,
-		Completed: p.Completed,
+		Succeeded: p.Succeeded,
+		Failed:    p.Failed,
 	}
 }

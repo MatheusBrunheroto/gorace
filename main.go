@@ -41,16 +41,17 @@ go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 func main() {
 
-	cacheChan := make(chan cache.Operation, 100)
-	go cache.Run(cacheChan)
+	cacheChan := make(chan cache.Operation)
+	go cache.Run(cacheChan) // OwO
 	/* The progress channel is used inside the initWorker
-	- Inside Display, {Total, Sent, Completed, Finished} are read-only channels
+	- Inside Display, {Total, Sent, Succeeded, Finished} are read-only channels
 	- Inside InitWorkers
 	*/
 	progress := log.Progress{
 		Total:     make(chan int),
 		Sent:      make(chan int),
-		Completed: make(chan int),
+		Succeeded: make(chan int),
+		Failed:    make(chan int),
 	}
 	displayFinished := make(chan struct{}, 1)
 	display.Display(progress.Reader(), displayFinished)

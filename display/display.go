@@ -29,37 +29,42 @@ func progressBar(sent int, total int, amount int) string {
 
 }
 
-func listener(barSize int, progress log.ProgressReader, finished chan<- struct{}) {
+func incrementIfActive(counter *int, received bool) {
+	if received {
+		(*counter)++
+	}
+}
+func monitorProgress(barSize int, progress log.ProgressReader, finished chan<- struct{}) {
 
-	total := <-progress.Total // Forces listener to stay off until end of wordlist reading
-	var sent, completed int
+	total := <-progress.Total // Forces listener to stay off until wordlist reading finishes
+
+	var sent, succeeded, failed int
+	var completed, remaining int
 
 	for {
-		select {
-		case _, ok := <-progress.Sent:
-			if !ok {
-				break
-			}
-			sent++
 
-		case _, ok := <-progress.Completed:
-			if !ok {
-				break
-			}
-			completed++
+		select {
+		case _, isOpen := <-progress.Sent:
+			incrementIfActive(&sent, isOpen)
+
+		case _, isOpen := <-progress.Succeeded:
+			incrementIfActive(&succeeded, isOpen)
+
+		case _, isOpen := <-progress.Failed:
+			incrementIfActive(&failed, isOpen)
 		}
 
+		completed = succeeded + failed
+		remaining = total - completed
+
 		bar := progressBar(completed, total, barSize)
-
-		remaining := total - completed
-		// sobe pra linha da barra
-
-		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, completed, remaining)
+		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, succeeded, remaining)
 
 		if completed == total {
 			finished <- struct{}{}
 			return
 		}
+
 	}
 }
 
@@ -70,7 +75,7 @@ func Display(progress log.ProgressReader, finished chan<- struct{}) error {
 		fmt.Println(err)
 	}
 
-	go listener(barSize+2, progress, finished) // +2 for some reason fixes a lot of imprecisions
+	go monitorProgress(barSize+2, progress, finished) // +2 for some reason fixes a lot of imprecisions
 
 	return nil
 }

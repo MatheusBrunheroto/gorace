@@ -6,9 +6,7 @@ import (
 	"gorace/input"
 	"gorace/log"
 	"gorace/request/cache"
-	"io"
 	"net/http"
-	"strings"
 
 	"github.com/cespare/xxhash/v2"
 )
@@ -23,53 +21,61 @@ func computeHash(w input.Website) uint64 {
 	return xxhash.Sum64String(code)
 }
 
-// Always ends up doing N threads to the first website, and N for the other
-// Receives a copy, so there is no need to thread lock
-func worker(start <-chan struct{}, w input.Website, chans WorkerChans) {
-
-	sent := chans.Progress.Sent
-	completed := chans.Progress.Completed
+// Checks for request existence in cache, if it doesn't exist, create a new and insert in cache
+func getOrBuildRequest(w input.Website, cacheChan chan cache.Operation) (*http.Request, error) {
 
 	var request *http.Request
 	var err error
 
-	// xSlice(w.Headers, w.Cookies, w.Data)
 	hash := computeHash(w)
-	copy := cache.Get(hash, chans.CacheChan)
 
-	if copy != nil {
-		request = copy.Clone(context.Background())
+	if copy := cache.Get(hash, cacheChan); copy != nil {
+		request = copy.Clone(context.Background()) // Does not clone BODY
+		return request, nil
+	}
 
-	} else {
-		request, err = buildRequest(w)
-		if err != nil {
-			return
-		}
-		cache.Insert(hash, request, chans.CacheChan)
+	if request, err = buildRequest(w); err != nil {
+		return nil, err
+	}
+	cache.Insert(hash, request, cacheChan)
+	return request, nil
+
+}
+
+// Always ends up doing N threads to the first website, and N for the other
+// Receives a copy, so there is no need to thread lock
+func worker(start <-chan struct{}, w input.Website, chans WorkerChans) {
+
+	request, err := getOrBuildRequest(w, chans.CacheChan)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
 	<-start
-	sent <- 1
+	chans.Progress.Sent <- 1
 
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	if err != nil {
-		completed <- 1
+		chans.Progress.Failed <- 1
+		fmt.Println(err)
 		return
 	}
-	respbody, err := io.ReadAll(resp.Body)
+	_ = resp
+	/*respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-		completed <- 1
 		return
 	}
 	resp.Body.Close()
 
+	// FILTRA
 	//fmt.Println(resp.Status, resp.ContentLength)
 	if !strings.Contains(string(respbody), "Invalid username or password.") {
 		//	fmt.Println(w.Data, resp.Header)
-	}
-	//We Read the response body on the line below.
-	completed <- 1
+	}*/
+
+	chans.Progress.Succeeded <- 1
 
 }

@@ -15,6 +15,8 @@ func maxThreads(websites []input.Website) int {
 	}
 	return n
 }
+
+// Returns the sum of all thread amounts inside "websites"
 func totalThreads(websites []input.Website) int {
 	n := 0
 	for _, w := range websites {
@@ -30,19 +32,11 @@ Create N channels:
 */
 
 /**/
-func runWorkers(websites []input.Website, round bool, sequential bool, ch WorkerChans) {
+func runWorkers(websites []input.Website, round bool, sequential bool, iterations int, ch WorkerChans) {
+
 	var outerWg sync.WaitGroup
 
-	var loops int
-	if round {
-		loops = maxThreads(websites)
-		ch.Progress.Total <- loops * len(websites) // EXPLICAR MELHOR O QUE ISSO FAZ, MANDA PRO TOTAL QUE TA ESPERANDO NO DISPLAY'
-	} else {
-		loops = len(websites)
-		ch.Progress.Total <- totalThreads(websites)
-	}
-
-	for i := 0; i < loops; i++ {
+	for i := 0; i < iterations; i++ {
 		start := make(chan struct{})
 
 		var innerWg sync.WaitGroup
@@ -51,32 +45,36 @@ func runWorkers(websites []input.Website, round bool, sequential bool, ch Worker
 			currentWg = &innerWg
 		}
 
+		// If round, will send len(websites)
 		if round {
 			for _, w := range websites {
 				currentWg.Go(func() { worker(start, w, ch) })
 			}
+
 		} else {
 			w := websites[i]
 			for t := 0; t < w.Threads; t++ {
 				currentWg.Go(func() { worker(start, w, ch) })
 			}
 		}
-
 		close(start)
 
+		// If sequential every iteration will wait for response
 		if sequential {
 			innerWg.Wait()
 		}
 	}
 
+	// If cascade, wait for response after sending every single possibility inside the for loop
 	if !sequential {
 		outerWg.Wait()
 	}
+
 }
 
-func InitWorkers(websites []input.Website, mode string, ch WorkerChans) {
+func InitWorkers(websites []input.Website, mode string, ch WorkerChans) { // Intended behavior is below the function
 
-	// These constants are intended to make it easier to see the init parameters below
+	// Easier to see the init parameters
 	const ROUND, NORMAL bool = true, false
 	const SEQUENTIAL, CASCADE bool = true, false
 
@@ -84,21 +82,26 @@ func InitWorkers(websites []input.Website, mode string, ch WorkerChans) {
 
 	// After N threads of an URL requests were sent to worker, waits for them to finish before starting next URL requests
 	case "sequential":
-		runWorkers(websites, NORMAL, SEQUENTIAL, ch)
+		ch.Progress.Total <- totalThreads(websites)
+		runWorkers(websites, NORMAL, SEQUENTIAL, len(websites), ch)
 	// Same as sequential, but doesn't wait for its requests to finish before starting the next URL requests
 	case "cascade":
-		runWorkers(websites, NORMAL, CASCADE, ch)
+		ch.Progress.Total <- totalThreads(websites)
+		runWorkers(websites, NORMAL, CASCADE, len(websites), ch)
 
 	// Sequential's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-sequential":
-		runWorkers(websites, ROUND, SEQUENTIAL, ch)
+		ch.Progress.Total <- maxThreads(websites) * len(websites)
+		runWorkers(websites, ROUND, SEQUENTIAL, maxThreads(websites), ch)
 	// Cascade's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-cascade":
-		runWorkers(websites, ROUND, CASCADE, ch)
+		ch.Progress.Total <- maxThreads(websites) * len(websites)
+		runWorkers(websites, ROUND, CASCADE, maxThreads(websites), ch)
 
 	// This is the default mode "flood", group all the requests and fire them at the exact same moment
 	default:
 		start := make(chan struct{})
+		ch.Progress.Total <- totalThreads(websites)
 		var wg sync.WaitGroup
 		for _, w := range websites {
 			for range w.Threads {
@@ -110,3 +113,34 @@ func InitWorkers(websites []input.Website, mode string, ch WorkerChans) {
 	}
 
 }
+
+/* INTENDED BEHAVIOR WHEN TESTING/DEBUGGING:
+
+Assuming 2 URLs, URL_1 and URL_2, both containing a bool variable .sent and .completed,
+when simulating an attack, with the command "gorace -u 'URL_1' --threads 2 -u 'URL_2' --threads 3 --mode MODE",
+the expected output for each mode should be:
+
+--mode sequential
+  - URL_1.sent (2x)
+  - URL_1.completed (2x)
+  - URL_2.sent (3x)
+  - URL_2.completed (3x)
+
+--mode cascade
+  - URL_1.sent (2x)
+  - URL_2.sent (3x)			-- The .completed can arrive at any moment, it doesn't influenciate in the order
+
+--mode round-sequential (will repeat 3x since maxThreads informed = 3)
+  - URL_1.sent
+  - URL_1.completed
+  - URL_2.sent
+  - URL_2.completed
+  - (+2x)
+
+--mode round-cascade (will repeat 3x since maxThreads informed = 3)
+  - URL_1.sent
+  - URL_2.sent
+  - (+2x)					-- The .completed can arrive at any moment, it doesn't influenciate in the order
+
+--mode flood (it's the default): Everything is sent at the same time, good for single endpoint
+*/
