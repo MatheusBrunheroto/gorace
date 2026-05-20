@@ -25,6 +25,35 @@ func findRowSize(art []string) int {
 	return largest
 }
 
+func readAsciiArt(arts *[][]string, path string) error {
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, e := range entries {
+
+		var art []string
+
+		file, err := os.Open(path + e.Name())
+		if err != nil {
+			return errors.New("Unable to open ascii art -> " + path + e.Name())
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+			art = append(art, scanner.Text())
+		}
+		*arts = append(*arts, art)
+
+	}
+	return nil
+}
 func printAsciiArt(art []string, theme []string) {
 
 	start, end := 0, len(art)-1
@@ -46,34 +75,6 @@ func printAsciiArt(art []string, theme []string) {
 		fmt.Println(line)
 	}
 	fmt.Println("")
-}
-
-func readAsciiArt(arts *[][]string, path string) error {
-
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, e := range entries {
-
-		var art []string
-
-		file, err := os.Open(path + e.Name())
-		if err != nil {
-			return errors.New("Unable to open ascii art -> " + path + e.Name())
-		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			art = append(art, scanner.Text())
-		}
-		*arts = append(*arts, art)
-
-	}
-
-	return nil
 }
 
 func handleAsciiArt() (int, error) {
