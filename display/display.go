@@ -3,7 +3,48 @@ package display
 import (
 	"fmt"
 	"gorace/log"
+	"strings"
 )
+
+/*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+__     _____   ____   _____
+||    ((   )) (( ___ ((   ))
+||__|  \\_//   \\_||  \\_//
+
+⸺⸺⸺⸺⸺⸺⸺⸺
+[!] CLI
+[+] Input
+[x] Feedback
+⸺⸺⸺⸺⸺⸺⸺⸺
+Url: https://REQUEST_CONFIG
+Method: POST
+Headers: User-Agent: chrome
+Cookies: session=vn2yu7908
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REQUESTS RESPONSES
+
+[##################--------] -> Sent: [i] Complete: [j] Remaining: [k]
+*/
+
+type Session struct {
+	Draw     chan string
+	Ready    chan struct{}
+	Finished chan struct{}
+	Progress log.ProgressReader
+}
+
+func NewSession(progress log.ProgressReader) Session {
+
+	return Session{
+		Draw:     make(chan string),
+		Ready:    make(chan struct{}),
+		Finished: make(chan struct{}),
+		Progress: progress,
+	}
+
+}
 
 func progressBar(sent int, total int, amount int) string {
 
@@ -29,7 +70,7 @@ func progressBar(sent int, total int, amount int) string {
 
 }
 
-func incrementIfActive(counter *int, received bool) {
+func incrementIfOpen(counter *int, received bool) {
 	if received {
 		(*counter)++
 	}
@@ -45,13 +86,13 @@ func monitorProgress(barSize int, progress log.ProgressReader, finished chan<- s
 
 		select {
 		case _, isOpen := <-progress.Sent:
-			incrementIfActive(&sent, isOpen)
+			incrementIfOpen(&sent, isOpen)
 
 		case _, isOpen := <-progress.Succeeded:
-			incrementIfActive(&succeeded, isOpen)
+			incrementIfOpen(&succeeded, isOpen)
 
 		case _, isOpen := <-progress.Failed:
-			incrementIfActive(&failed, isOpen)
+			incrementIfOpen(&failed, isOpen)
 		}
 
 		completed = succeeded + failed
@@ -68,14 +109,29 @@ func monitorProgress(barSize int, progress log.ProgressReader, finished chan<- s
 	}
 }
 
-func Display(progress log.ProgressReader, finished chan<- struct{}) error {
+func Run(session Session) error {
 
 	barSize, err := handleAsciiArt()
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	go monitorProgress(barSize+2, progress, finished) // +2 for some reason fixes a lot of imprecisions
+	session.Ready <- struct{}{}
 
-	return nil
+	fmt.Printf("%s\n\n", strings.Repeat("⸺", barSize/2))
+
+	monitorFinished := make(chan struct{})
+	go monitorProgress(barSize, session.Progress, monitorFinished) // +2 for some reason fixes a lot of imprecisions
+
+	for {
+		select {
+
+		case <-monitorFinished:
+			session.Finished <- struct{}{}
+			return nil
+		}
+
+	}
+
+	// return nil
 }

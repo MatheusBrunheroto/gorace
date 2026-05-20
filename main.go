@@ -36,32 +36,35 @@ go main.go run -u '1.com' --threads 10 -u '2.com' --threads 20
 
 
 */
-
+// Fazer SINGLEPACKET, apenas pra modos FLOOD
 // Starts output
 
 func main() {
 
+	// CACHE
 	cacheChan := make(chan cache.Operation)
 	go cache.Run(cacheChan) // OwO
-	/* The progress channel is used inside the initWorker
-	- Inside Display, {Total, Sent, Succeeded, Finished} are read-only channels
-	- Inside InitWorkers
-	*/
+
 	progress := log.Progress{
 		Total:     make(chan int),
 		Sent:      make(chan int),
 		Succeeded: make(chan int),
 		Failed:    make(chan int),
 	}
-	displayFinished := make(chan struct{}, 1)
-	display.Display(progress.Reader(), displayFinished)
+
+	// DISPLAY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+	session := display.NewSession(progress.Reader())
+	go display.Run(session)
+	<-session.Ready
 
 	// Read and filter the CLI inputs
+	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
 	websites, mode, err := input.RunCLI(os.Args[1:])
 	if err != nil {
 		fmt.Println(err, "\nExiting...\n")
 		return
 	}
+	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
 
 	// This is a memory that runs with the code, avoiding buildRequest to generate the same request multiple times
 
@@ -72,7 +75,7 @@ func main() {
 	request.InitWorkers(websites, mode, workerChans)
 	// ADD val padrao de threads pra 0
 	fmt.Printf("\n\n")
-	<-displayFinished // Waits for display output to finish
+	<-session.Finished // Waits for display output to finish
 
 }
 

@@ -62,7 +62,7 @@ func worker(start <-chan struct{}, w input.Website, chans WorkerChans) {
 		fmt.Println(err)
 		return
 	}
-	_ = resp
+	fmt.Println(resp)
 	/*respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)

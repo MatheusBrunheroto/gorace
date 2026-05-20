@@ -7,10 +7,11 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"unicode/utf8"
 )
 
-func findLargestRow(art []string) int {
+func findRowSize(art []string) int {
 
 	largest := 0
 	for _, a := range art {
@@ -22,27 +23,6 @@ func findLargestRow(art []string) int {
 
 	}
 	return largest
-}
-
-func handleAsciiArt() (int, error) {
-
-	var arts [][]string
-	var themes [][]string // Three value arrays that dictates how every line from the logo will begin
-
-	if err := readAsciiArt(&arts, "./display/arts/"); err != nil {
-		return 0, err
-	}
-	if err := readAsciiArt(&themes, "./display/themes/"); err != nil {
-		return 0, err
-	}
-
-	r1 := rand.Intn(len(arts))
-	r2 := rand.Intn(len(themes))
-
-	fmt.Println("")
-	printAsciiArt(arts[r1], themes[r2])
-
-	return findLargestRow(arts[r1]), nil
 }
 
 func printAsciiArt(art []string, theme []string) {
@@ -94,4 +74,26 @@ func readAsciiArt(arts *[][]string, path string) error {
 	}
 
 	return nil
+}
+
+func handleAsciiArt() (int, error) {
+
+	var arts [][]string
+	var themes [][]string // Three value arrays that dictates how every line from the logo will begin
+
+	if err := readAsciiArt(&arts, "./display/arts/"); err != nil {
+		return 0, err
+	}
+	if err := readAsciiArt(&themes, "./display/themes/"); err != nil {
+		return 0, err
+	}
+
+	r1 := rand.Intn(len(arts))
+	r2 := rand.Intn(len(themes))
+	largestRow := findRowSize(arts[r1]) + findRowSize(themes[r2])
+
+	fmt.Printf("\n%s\n\n", strings.Repeat("━", largestRow))
+	printAsciiArt(arts[r1], themes[r2])
+
+	return largestRow, nil
 }
