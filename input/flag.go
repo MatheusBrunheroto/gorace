@@ -36,7 +36,7 @@ func readFlag(flag *Flag, index int, args []string) error {
 }
 
 // Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
-func normalizeFlag(args *[]string) {
+func normalizeInputFlags(args *[]string) {
 
 	table := map[string]string{
 		"-u": "--url",
@@ -56,7 +56,42 @@ func normalizeFlag(args *[]string) {
 	}
 
 }
+func syncFlag(flags map[string]*Flag, syncPoint int) {
+	for k, f := range flags {
+		if k == "--url" {
+			continue
+		}
+		fillWebsiteDefaults(f, syncPoint, f.name)
+		f.exists = false
+	}
+}
 
+func parseInputFlags(flags map[string]*Flag, args []string) error {
+
+	var urlAmount int
+	for i := 0; i < len(args); i++ {
+
+		flag, exist := flags[args[i]]
+		if !exist {
+			continue
+		}
+		// Starts to read Flags for new URL in case of double endpoint (ignores the first URL)
+		urlAmount = len(flags["--url"].raw)
+		if (args[i] == "--url") && urlAmount != 0 {
+			syncFlag(flags, urlAmount)
+		}
+
+		if err := readFlag(flag, i, args); err != nil {
+			return err
+		}
+		i++
+
+		flag.exists = true
+	}
+	syncFlag(flags, urlAmount) // Last URL
+
+	return nil
+}
 func initFlags() map[string]*Flag {
 
 	urlFlag := newFlag("--url")

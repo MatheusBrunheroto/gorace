@@ -1,18 +1,16 @@
 package input
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 /*
 Lets assume that flagAmount =
 
 	"--url": 1,
-	"--method": 1,
-	"--headers": 0
+	"--method": 1 ITEM,
+	"--headers": 1
 	"--cookies": 0
 	"--data": 1
 	"--threads": 0
@@ -22,34 +20,6 @@ Every quantity should be the same as the number of url, so the append doesn't cr
 the array, causing a "desync".
 Example, if the user wants to send data only in the 3rd URL, the data array will have 2 empty elements before it.
 */
-func fillDefault(flag *Flag, urlAmount int, name string) error {
-
-	if flag.exists == false {
-
-		parameter := ""
-
-		if strings.Contains(name, "--method") {
-			parameter = "GET"
-		}
-		if strings.Contains(name, "--threads") {
-			parameter = "1"
-		}
-		if strings.Contains(name, "--delay") {
-			parameter = "0"
-		}
-
-		flag.raw = append(flag.raw, parameter)
-		return nil
-	}
-
-	// Flag exists, may have more than one
-	flagAmount := len(flag.raw)
-	if flagAmount > urlAmount {
-		return errors.New("Two or more equal flags detected! -> " + flag.name)
-	}
-
-	return nil
-}
 
 /* The command MUST follow:
 
@@ -76,53 +46,13 @@ How parseCLI() works:
 
 // Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
 
-func syncFlag(flags map[string]*Flag, syncPoint int) {
-	for k, f := range flags {
-		if k == "--url" {
-			continue
-		}
-		fillDefault(f, syncPoint, f.name)
-		f.exists = false
-	}
-}
-
-func parseArgs(flags map[string]*Flag, args []string) error {
-
-	nonUrlFlags := flags
-	delete(nonUrlFlags, "--url")
-
-	var urlAmount int
-	for i := 0; i < len(args); i++ {
-
-		flag, exist := flags[args[i]]
-		if !exist {
-			continue
-		}
-		// Starts to read Flags for new URL in case of double endpoint (ignores the first URL)
-		urlAmount = len(flags["--url"].raw)
-		if (args[i] == "--url") && urlAmount != 0 {
-			syncFlag(flags, urlAmount)
-		}
-
-		if err := readFlag(flag, i, args); err != nil {
-			return err
-		}
-		i++
-
-		flag.exists = true
-	}
-	syncFlag(flags, urlAmount) // Last URL
-
-	return nil
-}
-
 func parseCLI(args []string) ([]Website, error) {
 
 	var websites []Website
 
 	flags := initFlags()
-	normalizeFlag(&args) // -f to --flag
-	parseArgs(flags, args)
+	normalizeInputFlags(&args) // -f to --flag
+	parseInputFlags(flags, args)
 
 	// Read the arguments
 	// readFlags()

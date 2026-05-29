@@ -1,5 +1,10 @@
 package input
 
+import (
+	"errors"
+	"strings"
+)
+
 /*
 	 gorace -u 'url' -H 'Content-Type: application/json'
 
@@ -42,4 +47,32 @@ func (w Website) New() Website {
 		Delay:   0,
 	}
 
+}
+func fillWebsiteDefaults(flag *Flag, urlAmount int, name string) error {
+
+	if flag.exists == false {
+
+		parameter := ""
+
+		if strings.Contains(name, "--method") {
+			parameter = "GET"
+		}
+		if strings.Contains(name, "--threads") {
+			parameter = "1"
+		}
+		if strings.Contains(name, "--delay") {
+			parameter = "0"
+		}
+
+		flag.raw = append(flag.raw, parameter)
+		return nil
+	}
+
+	// Flag exists, may have more than one
+	flagAmount := len(flag.raw)
+	if flagAmount > urlAmount {
+		return errors.New("Two or more equal flags detected! -> " + flag.name)
+	}
+
+	return nil
 }

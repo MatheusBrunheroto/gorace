@@ -19,6 +19,10 @@ func readWordlists(path string) ([]string, error) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return []string{}, err
+		}
+
 		words = append(words, scanner.Text())
 	}
 
