@@ -28,4 +28,18 @@ type Website struct {
 	Cookies []Pair
 	Data    []Pair
 	Threads int
+	Delay   int
+}
+
+func (w Website) New() Website {
+	return Website{
+		Url:     "",
+		Method:  "GET",
+		Headers: []Pair{},
+		Cookies: []Pair{},
+		Data:    []Pair{},
+		Threads: 1,
+		Delay:   0,
+	}
+
 }

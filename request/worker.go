@@ -6,7 +6,9 @@ import (
 	"gorace/input"
 	"gorace/log"
 	"gorace/request/cache"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/cespare/xxhash/v2"
 )
@@ -53,6 +55,7 @@ func worker(start <-chan struct{}, w input.Website, chans WorkerChans) {
 	}
 
 	<-start
+	time.Sleep(time.Duration(w.Delay) * time.Millisecond)
 	chans.Progress.Sent <- 1
 
 	client := &http.Client{}
@@ -62,19 +65,15 @@ func worker(start <-chan struct{}, w input.Website, chans WorkerChans) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(resp)
-	/*respbody, err := io.ReadAll(resp.Body)
+	_ = resp
+	respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println(w)
+	fmt.Println(string(respbody))
 	resp.Body.Close()
-
-	// FILTRA
-	//fmt.Println(resp.Status, resp.ContentLength)
-	if !strings.Contains(string(respbody), "Invalid username or password.") {
-		//	fmt.Println(w.Data, resp.Header)
-	}*/
 
 	chans.Progress.Succeeded <- 1
 

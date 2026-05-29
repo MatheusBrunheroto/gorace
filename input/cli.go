@@ -7,51 +7,6 @@ import (
 	"strings"
 )
 
-type Flag struct {
-	name      string
-	parameter []string
-	exists    bool
-}
-type Field struct {
-	flag      *Flag
-	pairs     []Pair
-	delimiter string
-}
-
-func newFlag(name string) Flag {
-	var flag Flag
-	flag.name = name
-	flag.parameter = []string{}
-	flag.exists = false
-	return flag
-}
-func NewField(flag *Flag, pairs []Pair, delimiter string) Field {
-
-	var field Field
-
-	field.flag = flag
-	field.pairs = pairs
-	field.delimiter = delimiter
-
-	return field
-}
-
-func readFlag(flag *Flag, index int, args []string) error {
-
-	index++
-	if index >= len(args) {
-		return errors.New("Missing parameter for flag -> ") // PASSAR ALGUMA STRING PRA CA PRA RETORNAR CERTINHO
-	}
-	arg := args[index]
-
-	if strings.HasPrefix(arg, "-") {
-		return errors.New("Wrong parameter usage! -> ")
-	}
-	flag.parameter = append(flag.parameter, arg)
-
-	return nil
-}
-
 /*
 Lets assume that flagAmount =
 
@@ -67,7 +22,7 @@ Every quantity should be the same as the number of url, so the append doesn't cr
 the array, causing a "desync".
 Example, if the user wants to send data only in the 3rd URL, the data array will have 2 empty elements before it.
 */
-func fixEmpty(flag *Flag, urlAmount int, name string) error {
+func fillDefault(flag *Flag, urlAmount int, name string) error {
 
 	if flag.exists == false {
 
@@ -79,13 +34,16 @@ func fixEmpty(flag *Flag, urlAmount int, name string) error {
 		if strings.Contains(name, "--threads") {
 			parameter = "1"
 		}
+		if strings.Contains(name, "--delay") {
+			parameter = "0"
+		}
 
-		flag.parameter = append(flag.parameter, parameter)
+		flag.raw = append(flag.raw, parameter)
 		return nil
 	}
 
 	// Flag exists, may have more than one
-	flagAmount := len(flag.parameter)
+	flagAmount := len(flag.raw)
 	if flagAmount > urlAmount {
 		return errors.New("Two or more equal flags detected! -> " + flag.name)
 	}
@@ -116,101 +74,103 @@ How parseCLI() works:
 	So flagMap["-u"] corresponds to the address of the urlArgs string array
 */
 
-func parseCLI(args []string) ([]Website, error) {
+// Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
 
-	var websites []Website
-
-	// Initializes all the flags
-	urlFlag := newFlag("-u || --url")
-	methodFlag := newFlag("-m || --method")
-	headersFlag := newFlag("-H || --headers")
-	cookiesFlag := newFlag("-c || --cookies")
-	dataFlag := newFlag("-d || --data")
-	wordlistsFlag := newFlag("-w || --wordlists")
-	threadsFlag := newFlag("-t || --threads")
-
-	flags := [7]*Flag{&urlFlag, &methodFlag, &headersFlag, &cookiesFlag, &dataFlag, &wordlistsFlag, &threadsFlag}
-	flagMap := map[string]*Flag{
-		"-u": &urlFlag, "--url": &urlFlag,
-		"-X": &methodFlag, "--method": &methodFlag,
-		"-H": &headersFlag, "--headers": &headersFlag,
-		"-c": &cookiesFlag, "--cookies": &cookiesFlag,
-		"-d": &dataFlag, "--data": &dataFlag,
-		"-w": &wordlistsFlag, "--wordlist": &wordlistsFlag,
-		"-t": &threadsFlag, "--threads": &threadsFlag,
+func syncFlag(flags map[string]*Flag, syncPoint int) {
+	for k, f := range flags {
+		if k == "--url" {
+			continue
+		}
+		fillDefault(f, syncPoint, f.name)
+		f.exists = false
 	}
+}
 
-	// Read the arguments
+func parseArgs(flags map[string]*Flag, args []string) error {
+
+	nonUrlFlags := flags
+	delete(nonUrlFlags, "--url")
+
 	var urlAmount int
 	for i := 0; i < len(args); i++ {
 
-		flag, exist := flagMap[args[i]]
+		flag, exist := flags[args[i]]
 		if !exist {
 			continue
 		}
 		// Starts to read Flags for new URL in case of double endpoint (ignores the first URL)
-		urlAmount = len(urlFlag.parameter)
-		if (args[i] == "-u" || args[i] == "--url") && urlAmount != 0 {
-			for _, f := range flags[1:] { // Does not include urlArgs on pourpose
-				fixEmpty(f, urlAmount, f.name) // checks for flag.Exists, if not, append empty
-				f.exists = false
-			}
-
+		urlAmount = len(flags["--url"].raw)
+		if (args[i] == "--url") && urlAmount != 0 {
+			syncFlag(flags, urlAmount)
 		}
 
 		if err := readFlag(flag, i, args); err != nil {
-			return []Website{}, err
+			return err
 		}
 		i++
 
 		flag.exists = true
 	}
+	syncFlag(flags, urlAmount) // Last URL
+
+	return nil
+}
+
+func parseCLI(args []string) ([]Website, error) {
+
+	var websites []Website
+
+	flags := initFlags()
+	normalizeFlag(&args) // -f to --flag
+	parseArgs(flags, args)
+
+	// Read the arguments
+	// readFlags()
+
 	//RESUMIR ISSO TAMBEM POSSIVELMENTE
-	for _, f := range flags[1:] { // Does not include urlArgs on pourpose
-		fixEmpty(f, urlAmount, f.name) // checks for flag.Exists, if not, append empty
-		f.exists = false
-	}
 
-	headers := NewField(&headersFlag, []Pair{}, ":")
-	cookies := NewField(&cookiesFlag, []Pair{}, "=")
-	data := NewField(&dataFlag, []Pair{}, "=")
-	wordlists := NewField(&wordlistsFlag, []Pair{}, "=")
-	fields := []*Field{&headers, &cookies, &data, &wordlists}
+	fields := initFields(flags)
+	for i := 0; i < len(flags["--url"].raw); i++ {
 
-	for i := 0; i < urlAmount; i++ {
+		// Reset, so website 1 pairs doesn't reflect in website 2
+		fields["headers"].pairs = []Pair{}
+		fields["cookies"].pairs = []Pair{}
+		fields["data"].pairs = []Pair{}
+		fields["wordlists"].pairs = []Pair{}
 
-		if err := filterUrl(&urlFlag.parameter[i]); err != nil { // CUIDADO AQUI
+		if err := filterUrl(&flags["--url"].raw[i]); err != nil { // CUIDADO AQUI
 			return []Website{}, err
 		}
-		filterMethod(&methodFlag.parameter[i]) // Doesn't need error to be returned, worst case scenario, GET is used
+		filterMethod(&flags["--method"].raw[i]) // Doesn't need error to be returned, worst case scenario, GET is used
 
-		threads, err := strconv.Atoi(threadsFlag.parameter[i])
+		threads, err := strconv.Atoi(flags["--threads"].raw[i])
 		if err != nil {
 			return []Website{}, err
 		}
+		delay, err := strconv.Atoi(flags["--delay"].raw[i])
 
 		// Parse keys into the headers, cookies, data and wordlists fields
 		for _, field := range fields {
-			if i >= len(field.flag.parameter) || field.flag.parameter[i] == "" {
+			if i >= len(field.flag.raw) || field.flag.raw[i] == "" {
 				continue
 			}
-			if err := filterKeys(field.flag.parameter[i], &field.pairs, field.delimiter); err != nil {
+			if err := filterKeys(field.flag.raw[i], &field.pairs, field.delimiter); err != nil {
 				return []Website{}, err
 			}
 		}
 
 		// If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
-		if len(wordlists.pairs) > 0 {
+		if len(fields["wordlists"].pairs) > 0 {
 
-			filteredHeaders, expandedHeaders, err := handleWordlist(headers.pairs, wordlists.pairs)
+			filteredHeaders, expandedHeaders, err := handleWordlist(fields["headers"].pairs, fields["wordlists"].pairs)
 			if err != nil {
 				return []Website{}, err
 			}
-			filteredCookies, expandedCookies, err := handleWordlist(cookies.pairs, wordlists.pairs)
+			filteredCookies, expandedCookies, err := handleWordlist(fields["cookies"].pairs, fields["wordlists"].pairs)
 			if err != nil {
 				return []Website{}, err
 			}
-			filteredData, expandedData, err := handleWordlist(data.pairs, wordlists.pairs)
+			filteredData, expandedData, err := handleWordlist(fields["data"].pairs, fields["wordlists"].pairs)
 			if err != nil {
 				return []Website{}, err
 			}
@@ -245,12 +205,13 @@ func parseCLI(args []string) ([]Website, error) {
 						}
 
 						w := Website{
-							Url:     urlFlag.parameter[i],
-							Method:  methodFlag.parameter[i],
+							Url:     flags["--url"].raw[i],    // Unique
+							Method:  flags["--method"].raw[i], // Unique
 							Headers: newHeaders,
 							Cookies: newCookies,
 							Data:    newData,
 							Threads: threads,
+							Delay:   delay,
 						}
 						websites = append(websites, w)
 
@@ -260,15 +221,15 @@ func parseCLI(args []string) ([]Website, error) {
 		} else {
 
 			w := Website{
-				Url:     urlFlag.parameter[i],
-				Method:  methodFlag.parameter[i],
-				Headers: headers.pairs,
-				Cookies: cookies.pairs,
-				Data:    data.pairs,
+				Url:     flags["--url"].raw[i],
+				Method:  flags["--method"].raw[i],
+				Headers: fields["headers"].pairs,
+				Cookies: fields["cookies"].pairs,
+				Data:    fields["data"].pairs,
 				Threads: threads,
+				Delay:   delay,
 			}
 			websites = append(websites, w)
-
 		}
 
 	}

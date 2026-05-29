@@ -37,7 +37,7 @@ import (
 
 func main() {
 
-	// Cache (Will later on avoid buildRequest generating the same request multiple times)
+	// Cache (will later on avoid buildRequest generating the same request multiple times)
 	cacheChan := make(chan cache.Operation)
 	go cache.Run(cacheChan) // OwO
 
@@ -60,6 +60,11 @@ func main() {
 		fmt.Println("")
 		return
 	}
+	for _, w := range websites {
+		fmt.Println(w)
+		fmt.Println()
+	}
+
 	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
 
 	// Worker
