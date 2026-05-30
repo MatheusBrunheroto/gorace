@@ -2,24 +2,7 @@ package input
 
 import (
 	"fmt"
-	"strconv"
 )
-
-/*
-Lets assume that flagAmount =
-
-	"--url": 1,
-	"--method": 1 ITEM,
-	"--headers": 1
-	"--cookies": 0
-	"--data": 1
-	"--threads": 0
-	"--wordlist": 0
-
-Every quantity should be the same as the number of url, so the append doesn't create an undesired parameter on
-the array, causing a "desync".
-Example, if the user wants to send data only in the 3rd URL, the data array will have 2 empty elements before it.
-*/
 
 /* The command MUST follow:
 
@@ -46,48 +29,44 @@ How parseCLI() works:
 
 // Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
 
-func parseCLI(args []string) ([]Website, error) {
+func handleField(current Config, flag string, value string) error {
 
-	var websites []Website
+	var pairs []Pair
+	var err error
+
+	fields := map[string][]Pair{
+		"--headers":   current.Headers,
+		"--cookies":   current.Cookies,
+		"--data":      current.Data,
+		"--wordlists": current.Wordlists,
+	}
+
+	field, _ := fields[flag]
+	if pairs, err = parsePairs(value); err != nil { // parse pairs do anything with : or =
+		return err
+	}
+	field = append(field, pairs...)
+	return nil
+
+}
+
+func parseCLI(args []string) ([]Config, error) {
 
 	flags := initFlags()
 	normalizeInputFlags(&args) // -f to --flag
-	parseInputFlags(flags, args)
 
-	// Read the arguments
-	// readFlags()
+	configs, err := getConfigs(flags, args) // Will return non-wordlists vs wordlists
+	if err != nil {
+		return []Config{}, err
+	}
 
-	//RESUMIR ISSO TAMBEM POSSIVELMENTE
+	////////////////////////////////////////
 
-	fields := initFields(flags)
 	for i := 0; i < len(flags["--url"].raw); i++ {
 
 		// Reset, so website 1 pairs doesn't reflect in website 2
-		fields["headers"].pairs = []Pair{}
-		fields["cookies"].pairs = []Pair{}
-		fields["data"].pairs = []Pair{}
+		// LEMBRAR OQ EU TAVA FAZENDO COM WORDLIST PELO GIT
 		fields["wordlists"].pairs = []Pair{}
-
-		if err := filterUrl(&flags["--url"].raw[i]); err != nil { // CUIDADO AQUI
-			return []Website{}, err
-		}
-		filterMethod(&flags["--method"].raw[i]) // Doesn't need error to be returned, worst case scenario, GET is used
-
-		threads, err := strconv.Atoi(flags["--threads"].raw[i])
-		if err != nil {
-			return []Website{}, err
-		}
-		delay, err := strconv.Atoi(flags["--delay"].raw[i])
-
-		// Parse keys into the headers, cookies, data and wordlists fields
-		for _, field := range fields {
-			if i >= len(field.flag.raw) || field.flag.raw[i] == "" {
-				continue
-			}
-			if err := filterKeys(field.flag.raw[i], &field.pairs, field.delimiter); err != nil {
-				return []Website{}, err
-			}
-		}
 
 		// If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
 		if len(fields["wordlists"].pairs) > 0 {
@@ -168,7 +147,7 @@ func parseCLI(args []string) ([]Website, error) {
 }
 
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
-func RunCLI(args []string) ([]Website, string, error) {
+func RunCLI(args []string) ([]Config, string, error) {
 
 	var mode string = "flood"
 	modes := []string{"sequential", "round-sequential", "cascade", "round-cascade", "flood"}
@@ -195,12 +174,12 @@ func RunCLI(args []string) ([]Website, string, error) {
 		fmt.Println("[!] Mode wasn't identified, using \"flood\" as default...")
 	}
 
-	websites, err := parseCLI(args)
+	configs, err := parseCLI(args)
 	if err != nil {
-		return []Website{}, "", err
+		return []Config{}, "", err
 	}
 	fmt.Printf("[+] Input read successfully!\n\n")
 
-	return websites, mode, nil
+	return configs, mode, nil
 
 }
