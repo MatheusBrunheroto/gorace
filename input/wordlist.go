@@ -2,15 +2,27 @@ package input
 
 import (
 	"bufio"
-	"errors"
+	"fmt"
 	"os"
 )
 
-func readWordlists(path string) ([]string, error) {
+// OK
+func removeWordlistPlaceholder(key string, field *[]Pair) {
+	var filtered []Pair
+	for _, p := range *field {
+		if p.Key != key {
+			filtered = append(filtered, p)
+		}
+	}
+	*field = filtered
+}
+
+// ok
+func readWordlists(path string) []string {
 
 	file, err := os.Open(path)
 	if err != nil {
-		return []string{}, errors.New("Invalid path -> " + path)
+		panic("Invalid path -> " + path)
 	}
 	defer file.Close()
 
@@ -20,34 +32,11 @@ func readWordlists(path string) ([]string, error) {
 	for scanner.Scan() {
 		words = append(words, scanner.Text())
 	}
-	if err := scanner.Err(); err != nil { // ✅ agora detecta
-		return []string{}, err
+	if err := scanner.Err(); err != nil {
+		panic(err)
 	}
-	return words, nil
-}
-
-func parseWordlist(words []string, field []Pair, pair Pair, isKey bool) []Pair {
-
-	var expanded []Pair
-
-	for _, w := range words {
-
-		if isKey {
-			expanded = append(expanded, Pair{Key: w, Value: pair.Value})
-		} else {
-			expanded = append(expanded, Pair{Key: pair.Key, Value: w})
-		}
-	}
-	return expanded
-}
-
-func removeWordlistPlaceholder(key string, field *[]Pair) {
-	for i := range *field {
-		if (*field)[i].Key == key {
-			*field = append((*field)[:i], (*field)[i+1:]...)
-			i--
-		}
-	}
+	fmt.Println(words)
+	return words
 }
 
 func insertsWordlist(original Config, expanded map[string][]Pair) []Config {
@@ -66,12 +55,14 @@ func insertsWordlist(original Config, expanded map[string][]Pair) []Config {
 		for _, c := range expanded["Cookies"] {
 			for _, d := range expanded["Data"] {
 
+				newFields := original.copy()
+
 				new := Config{
 					Url:     original.Url,
 					Method:  original.Method,
-					Headers: append(original.Headers, h),
-					Cookies: append(original.Cookies, c),
-					Data:    append(original.Data, d),
+					Headers: append(newFields.Headers, h),
+					Cookies: append(newFields.Cookies, c),
+					Data:    append(newFields.Data, d),
 					Threads: original.Threads,
 					Delay:   original.Delay,
 				}
@@ -84,34 +75,40 @@ func insertsWordlist(original Config, expanded map[string][]Pair) []Config {
 	return newConfigs
 }
 
-/*
--H 'key:value'
+func parseWordlist(words []string, pair Pair, isKey bool) []Pair {
 
--H 'WORDLIST:value'
--H 'key:WORDLIST'
+	var expanded []Pair
 
-*/
-// na verdade isso ta tudo errado, preciso salva separado
+	for _, w := range words {
+		if isKey {
+			expanded = append(expanded, Pair{Key: w, Value: pair.Value})
+		} else {
+			expanded = append(expanded, Pair{Key: pair.Key, Value: w})
+		}
+	}
 
-func handleWordlist(config Config) ([]Config, error) {
+	return expanded
+}
+
+type Expansion struct {
+	Field       string
+	Placeholder string
+	Pairs       []Pair
+}
+
+func handleWordlist(config Config) []Config {
 
 	fields := map[string]*[]Pair{
 		"Headers": &config.Headers,
 		"Cookies": &config.Cookies,
 		"Data":    &config.Data,
 	}
-	expanded := map[string][]Pair{
-		"Headers": []Pair{},
-		"Cookies": []Pair{},
-		"Data":    []Pair{},
-	}
+	expanded := make(map[string]map[string][]Pair)
 
 	for _, wordlist := range config.Wordlists {
 
-		words, err := readWordlists(wordlist.Value) // Path
-		if err != nil {
-			return []Config{}, err
-		}
+		words := readWordlists(wordlist.Value) // Path
+
 		// Headers, Cookies and Data
 		for name, field := range fields {
 
@@ -120,14 +117,14 @@ func handleWordlist(config Config) ([]Config, error) {
 
 				if pair.Key == wordlist.Key {
 					removeWordlistPlaceholder(pair.Key, field)
-					e := parseWordlist(words, *field, pair, true)
-					expanded[name] = append(expanded[name], e...)
+					e := parseWordlist(words, pair, true)
+					expanded[name][pair.Key] = append(expanded[name][pair.Key], e...)
 					continue
 				}
 				if pair.Value == wordlist.Key {
 					removeWordlistPlaceholder(pair.Value, field)
-					e := parseWordlist(words, *field, pair, true)
-					expanded[name] = append(expanded[name], e...)
+					e := parseWordlist(words, pair, false)
+					expanded[name][pair.Value] = append(expanded[name][pair.Value], e...)
 					continue
 				}
 
@@ -136,7 +133,7 @@ func handleWordlist(config Config) ([]Config, error) {
 		}
 
 	}
-	new := insertsWordlist(config, expanded)
+	fmt.Println(expanded)
+	return insertsWordlist(config, expanded)
 
-	return new, nil
 }

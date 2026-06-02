@@ -1,7 +1,6 @@
 package input
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -19,6 +18,7 @@ Anything that goes against the structure 'KEY=VALUE' for -b, -d and -w;
 or 'KEY:VALUE' for -H is rejected.
 */
 
+// OK
 func findDelimiter(s string, values []string) (string, bool) {
 	for _, v := range values {
 		if strings.Contains(s, v) {
@@ -28,57 +28,53 @@ func findDelimiter(s string, values []string) (string, bool) {
 	return "", false
 }
 
-func parseKeyValue(raw string, pairs *[]Pair) error {
+// OK
+func parseKeyValue(raw string) Pair {
 
-	if delimiter, found := findDelimiter(raw, []string{":", "="}); found {
-		parts := strings.SplitN(raw, delimiter, 2)
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-		if key == "" || value == "" {
-			return errors.New("[-] Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
-		}
-
-		*pairs = append(*pairs, Pair{Key: key, Value: value})
-		return nil
+	delimiter, found := findDelimiter(raw, []string{":", "="})
+	if !found {
+		panic("[-] No valid delimiter found in: " + raw)
 	}
 
-	return errors.New("[-] No valid delimiter found in: " + raw)
+	parts := strings.SplitN(raw, delimiter, 2)
 
+	key := strings.TrimSpace(parts[0])
+	value := strings.TrimSpace(parts[1])
+
+	if key == "" || value == "" {
+		panic("[-] Empty key or value! -> " + raw + "\nCheck examples with gorace --help.")
+	}
+
+	return Pair{Key: key, Value: value}
 }
 
-func parsePairs(raw string) ([]Pair, error) {
+// OK
+func parsePairs(raw string) []Pair {
 
 	var parsedPairs []Pair
 
-	// If contais ',' or '&' (has multiple keys), splits ':' or '='
+	// If contais ',' or '&' (has multiple keys), splits by ':' or '='
 	if delimeter, found := findDelimiter(raw, []string{",", "&"}); found {
 
-		pairs := strings.Split(raw, delimeter)
-
-		for _, pair := range pairs {
-
-			if err := parseKeyValue(pair, &parsedPairs); err != nil {
-				return []Pair{}, err
-			}
-
+		// pairs := strings.SplitSeq(raw, delimeter)
+		for pair := range strings.SplitSeq(raw, delimeter) {
+			parsedPairs = append(parsedPairs, parseKeyValue(pair))
 		}
+
 	} else {
-		if err := parseKeyValue(raw, &parsedPairs); err != nil {
-			return []Pair{}, err
-		}
+		parsedPairs = append(parsedPairs, parseKeyValue(raw))
 	}
 
-	return parsedPairs, nil
+	return parsedPairs
 }
 
-func normalizeUrl(target *string) error {
+func normalizeUrl(target *string) {
 
 	if *target == "" {
-		return errors.New("[-] No Website URL was informed (-U or --url)")
+		panic("[-] No Website URL was informed (-U or --url)")
 	}
 	if strings.HasPrefix(*target, "-") {
-		return errors.New("[-] Invalid URL for -U or --url -> " + *target)
+		panic("[-] Invalid URL for -U or --url -> " + *target)
 	}
 
 	if !strings.HasPrefix(*target, "http://") && !strings.HasPrefix(*target, "https://") {
@@ -88,10 +84,9 @@ func normalizeUrl(target *string) error {
 
 	u, err := url.Parse(*target)
 	if err != nil || u.Host == "" {
-		return errors.New("[-] Invalid URL -> " + *target)
+		panic("[-] Invalid URL -> " + *target)
 	}
 
-	return nil
 }
 
 func normalizeMethod(method string) string {

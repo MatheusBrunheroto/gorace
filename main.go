@@ -53,12 +53,8 @@ func main() {
 	<-session.Ready // Waits for ascii_art.go
 
 	// CLI (Read and filter the inputs)
-	websites, mode, err := input.RunCLI(os.Args[1:])
-	if err != nil {
-		fmt.Println(err, "\nExiting...")
-		fmt.Println("")
-		return
-	}
+	websites, mode := input.RunCLI(os.Args[1:])
+
 	for _, w := range websites {
 		fmt.Println(w)
 		fmt.Println()
@@ -79,7 +75,6 @@ func main() {
 	*/
 }
 
-// ADD val padrao de threads pra 0
 // TODO, MODO de input direto de wordlist, MODOS DE rodar,
 // AO inves de retornar os erros e tentar fazer funcionar denovo basta colocar o panic ao inves do erros.New
 // Fazer SINGLEPACKET, apenas pra modos FLOOD

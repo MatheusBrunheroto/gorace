@@ -1,7 +1,6 @@
 package input
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -30,43 +29,19 @@ How parseCLI() works:
 
 // Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
 
-func handleField(current *Config, flag string, raw string) error {
-	pairs, err := parsePairs(raw)
-	if err != nil {
-		return err
-	}
-
-	switch flag {
-	case "--headers":
-		current.Headers = append(current.Headers, pairs...)
-	case "--cookies":
-		current.Cookies = append(current.Cookies, pairs...)
-	case "--data":
-		current.Data = append(current.Data, pairs...)
-	case "--wordlist":
-		current.Wordlists = append(current.Wordlists, pairs...)
-	}
-	return nil
-}
-func parseCLI(args []string) ([]Config, error) {
+func parseCLI(args []string) []Config {
 
 	flags := initFlags()
 	normalizeInputFlags(&args) // -f to --flag
 
-	configs, err := getConfigs(flags, args) // May return files with Wordlists
-	if err != nil {
-		return []Config{}, err
-	}
+	configs := getConfigs(flags, args) // May return files with Wordlists
 
 	var websites []Config
 
 	for _, c := range configs {
 
 		if len(c.Wordlists) > 0 {
-			w, err := handleWordlist(c.copy()) // If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
-			if err != nil {
-				return []Config{}, err
-			}
+			w := handleWordlist(c.copy())     // If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
 			websites = append(websites, w...) // pode retornar mais de um
 		} else {
 			websites = append(websites, c)
@@ -74,16 +49,16 @@ func parseCLI(args []string) ([]Config, error) {
 
 	}
 
-	return websites, nil
+	return websites
 }
 
 ////////////////////////////////////////
 
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
-func RunCLI(args []string) ([]Config, string, error) {
+func RunCLI(args []string) ([]Config, string) {
 
 	if len(args)%2 != 0 {
-		return []Config{}, "", errors.New("[!] A flag is missing a parameter! Exiting...")
+		panic("[!] A flag is missing a parameter! Exiting...")
 	}
 
 	var mode string = "flood" // Default
@@ -111,12 +86,9 @@ func RunCLI(args []string) ([]Config, string, error) {
 		fmt.Println("[!] Mode wasn't identified, using \"flood\" as default...")
 	}
 
-	configs, err := parseCLI(args)
-	if err != nil {
-		return []Config{}, "", err
-	}
+	configs := parseCLI(args)
 	fmt.Printf("[+] Input read successfully!\n\n")
 
-	return configs, mode, nil
+	return configs, mode
 
 }

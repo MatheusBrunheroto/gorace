@@ -62,15 +62,13 @@ func defaultConfig() Config {
 	}
 }
 
-func writeCurrentConfig(current *Config, flag string, raw string) error {
+func writeConfig(current *Config, flag string, raw string) {
 
 	switch flag {
 
 	// Only one flag can be called
 	case "--url":
-		if err := normalizeUrl(&raw); err != nil {
-			return err
-		}
+		normalizeUrl(&raw)
 		current.Url = raw
 
 	case "--method":
@@ -82,20 +80,29 @@ func writeCurrentConfig(current *Config, flag string, raw string) error {
 
 	// One or more flags can be called
 	case "--headers", "--cookies", "--data", "--wordlist":
-		if err := handleField(current, flag, raw); err != nil {
-			return err
-		}
-	}
 
-	return nil
+		pairs := parsePairs(raw)
+
+		switch flag {
+		case "--headers":
+			current.Headers = append(current.Headers, pairs...)
+		case "--cookies":
+			current.Cookies = append(current.Cookies, pairs...)
+		case "--data":
+			current.Data = append(current.Data, pairs...)
+		case "--wordlist":
+			current.Wordlists = append(current.Wordlists, pairs...)
+		}
+
+	}
 
 }
 
-func getConfigs(flags map[string]string, args []string) ([]Config, error) {
+func getConfigs(flags map[string]string, args []string) []Config {
 
 	var configs []Config
 	current := defaultConfig()
-	fmt.Println("sa")
+
 	// se flag url, modifica Config.URL
 	var alias, value string
 	for i := 0; i < len(args); i++ {
@@ -112,18 +119,16 @@ func getConfigs(flags map[string]string, args []string) ([]Config, error) {
 
 		// First URL
 		if alias == "--url" && i > 1 {
-			fmt.Println("saSSSSSSSSSSSSSSSS")
 			configs = append(configs, current.copy()) // Save Current Config
-
-			current = defaultConfig() // Set Current Config to Default
-			fmt.Println("saSSSSSSSSSSSSSSSS")
+			current = defaultConfig()                 // Set Current Config to Default
 		}
 
-		writeCurrentConfig(&current, alias, value)
+		writeConfig(&current, alias, value)
+		fmt.Println(current)
 
 	}
 	configs = append(configs, current) // To save the Last URL
 
-	return configs, nil
+	return configs
 
 }
