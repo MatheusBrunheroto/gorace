@@ -1,6 +1,9 @@
 package input
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 /*
 	 gorace -u 'url' -H 'Content-Type: application/json'
@@ -24,13 +27,27 @@ type Pair struct {
 }
 
 type Config struct {
-	Url     string
-	Method  string
-	Headers []Pair
-	Cookies []Pair
-	Data    []Pair
-	Threads int
-	Delay   int
+	Url       string
+	Method    string
+	Headers   []Pair
+	Cookies   []Pair
+	Data      []Pair
+	Wordlists []Pair
+	Threads   int
+	Delay     int
+}
+
+func (c Config) copy() Config {
+	return Config{
+		Url:       c.Url,
+		Method:    c.Method,
+		Headers:   append([]Pair(nil), c.Headers...),
+		Cookies:   append([]Pair(nil), c.Cookies...),
+		Data:      append([]Pair(nil), c.Data...),
+		Wordlists: append([]Pair(nil), c.Wordlists...),
+		Threads:   c.Threads,
+		Delay:     c.Delay,
+	}
 }
 
 func defaultConfig() Config {
@@ -44,38 +61,41 @@ func defaultConfig() Config {
 		Delay:   0,
 	}
 }
-func writeCurrentConfig(current Config, flag string, value string) error {
+
+func writeCurrentConfig(current *Config, flag string, raw string) error {
 
 	switch flag {
 
 	// Only one flag can be called
 	case "--url":
-		if err := filterUrl(&value); err != nil {
+		if err := normalizeUrl(&raw); err != nil {
 			return err
 		}
-		current.Url = value
+		current.Url = raw
 
 	case "--method":
-		current.Method = filterMethod(value)
+		current.Method = normalizeMethod(raw)
 	case "--threads":
-		current.Threads, _ = strconv.Atoi(value)
+		current.Threads, _ = strconv.Atoi(raw)
 	case "--delay":
-		current.Delay, _ = strconv.Atoi(value)
+		current.Delay, _ = strconv.Atoi(raw)
 
 	// One or more flags can be called
-	case "--headers", "--cookies", "--data", "--wordlists":
-		handleField(current, flag, value)
-
+	case "--headers", "--cookies", "--data", "--wordlist":
+		if err := handleField(current, flag, raw); err != nil {
+			return err
+		}
 	}
 
 	return nil
 
 }
+
 func getConfigs(flags map[string]string, args []string) ([]Config, error) {
 
 	var configs []Config
 	current := defaultConfig()
-
+	fmt.Println("sa")
 	// se flag url, modifica Config.URL
 	var alias, value string
 	for i := 0; i < len(args); i++ {
@@ -90,16 +110,20 @@ func getConfigs(flags map[string]string, args []string) ([]Config, error) {
 			continue
 		}
 
-		// First URL CRIAR FUNCAO
+		// First URL
 		if alias == "--url" && i > 1 {
+			fmt.Println("saSSSSSSSSSSSSSSSS")
 			configs = append(configs, current.copy()) // Save Current Config
-			current = defaultConfig()                 // Set Current Config to Default
+
+			current = defaultConfig() // Set Current Config to Default
+			fmt.Println("saSSSSSSSSSSSSSSSS")
 		}
 
-		writeCurrentConfig(current, alias, value)
+		writeCurrentConfig(&current, alias, value)
 
 	}
-	configs = append(configs, current.copy()) // Save Current Config
-	current = defaultConfig()
+	configs = append(configs, current) // To save the Last URL
+
+	return configs, nil
 
 }

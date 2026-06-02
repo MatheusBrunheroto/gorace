@@ -18,13 +18,13 @@ type WorkerChans struct {
 	CacheChan chan cache.Operation
 }
 
-func computeHash(w input.Website) uint64 {
+func computeHash(w input.Config) uint64 {
 	code := fmt.Sprintf("%s%s%s%s%s%d", w.Url, w.Method, w.Headers, w.Cookies, w.Data, w.Threads)
 	return xxhash.Sum64String(code)
 }
 
 // Checks for request existence in cache, if it doesn't exist, create a new and insert in cache
-func getOrBuildRequest(w input.Website, cacheChan chan cache.Operation) (*http.Request, error) {
+func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Request, error) {
 
 	var request *http.Request
 	var err error
@@ -44,9 +44,9 @@ func getOrBuildRequest(w input.Website, cacheChan chan cache.Operation) (*http.R
 
 }
 
-// Always ends up doing N threads to the first website, and N for the other
+// Always ends up doing N threads to the first Config, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(start <-chan struct{}, w input.Website, chans WorkerChans) {
+func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
 
 	request, err := getOrBuildRequest(w, chans.CacheChan)
 	if err != nil {

@@ -5,10 +5,10 @@ import (
 	"sync"
 )
 
-// Returns the largest thread amount inside "websites"
-func maxThreads(websites []input.Website) int {
+// Returns the largest thread amount inside "configs"
+func maxThreads(configs []input.Config) int {
 	n := 1
-	for _, w := range websites {
+	for _, w := range configs {
 		if w.Threads > n {
 			n = w.Threads
 		}
@@ -16,10 +16,10 @@ func maxThreads(websites []input.Website) int {
 	return n
 }
 
-// Returns the sum of all thread amounts inside "websites"
-func totalThreads(websites []input.Website) int {
+// Returns the sum of all thread amounts inside "configs"
+func totalThreads(configs []input.Config) int {
 	n := 0
-	for _, w := range websites {
+	for _, w := range configs {
 		n += w.Threads
 	}
 	return n
@@ -27,12 +27,12 @@ func totalThreads(websites []input.Website) int {
 
 /*
 Create N channels:
-  - N = largest_thread_amount for "round" modes, so it loops through all websites at each N iteration
-  - N = website_amount for "normal" modes, so each website loop runs their given amount of threads
+  - N = largest_thread_amount for "round" modes, so it loops through all configs at each N iteration
+  - N = config_amount for "normal" modes, so each config loop runs their given amount of threads
 */
 
 /**/
-func runWorkers(websites []input.Website, round bool, sequential bool, iterations int, ch WorkerChans) {
+func runWorkers(configs []input.Config, round bool, sequential bool, iterations int, ch WorkerChans) {
 
 	var outerWg sync.WaitGroup
 
@@ -45,14 +45,14 @@ func runWorkers(websites []input.Website, round bool, sequential bool, iteration
 			currentWg = &innerWg
 		}
 
-		// If round, will send len(websites)
+		// If round, will send len(configs)
 		if round {
-			for _, w := range websites {
+			for _, w := range configs {
 				currentWg.Go(func() { worker(start, w, ch) })
 			}
 
 		} else {
-			w := websites[i]
+			w := configs[i]
 			for t := 0; t < w.Threads; t++ {
 				currentWg.Go(func() { worker(start, w, ch) })
 			}
@@ -72,7 +72,7 @@ func runWorkers(websites []input.Website, round bool, sequential bool, iteration
 
 }
 
-func InitWorkers(websites []input.Website, mode string, ch WorkerChans) { // Intended behavior is below the function
+func InitWorkers(configs []input.Config, mode string, ch WorkerChans) { // Intended behavior is below the function
 
 	// Easier to see the init parameters
 	const ROUND, NORMAL bool = true, false
@@ -82,28 +82,28 @@ func InitWorkers(websites []input.Website, mode string, ch WorkerChans) { // Int
 
 	// After N threads of an URL requests were sent to worker, waits for them to finish before starting next URL requests
 	case "sequential":
-		ch.Progress.Total <- totalThreads(websites)
-		runWorkers(websites, NORMAL, SEQUENTIAL, len(websites), ch)
+		ch.Progress.Total <- totalThreads(configs)
+		runWorkers(configs, NORMAL, SEQUENTIAL, len(configs), ch)
 	// Same as sequential, but doesn't wait for its requests to finish before starting the next URL requests
 	case "cascade":
-		ch.Progress.Total <- totalThreads(websites)
-		runWorkers(websites, NORMAL, CASCADE, len(websites), ch)
+		ch.Progress.Total <- totalThreads(configs)
+		runWorkers(configs, NORMAL, CASCADE, len(configs), ch)
 
 	// Sequential's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-sequential":
-		ch.Progress.Total <- maxThreads(websites) * len(websites)
-		runWorkers(websites, ROUND, SEQUENTIAL, maxThreads(websites), ch)
+		ch.Progress.Total <- maxThreads(configs) * len(configs)
+		runWorkers(configs, ROUND, SEQUENTIAL, maxThreads(configs), ch)
 	// Cascade's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-cascade":
-		ch.Progress.Total <- maxThreads(websites) * len(websites)
-		runWorkers(websites, ROUND, CASCADE, maxThreads(websites), ch)
+		ch.Progress.Total <- maxThreads(configs) * len(configs)
+		runWorkers(configs, ROUND, CASCADE, maxThreads(configs), ch)
 
 	// This is the default mode "flood", group all the requests and fire them at the exact same moment
 	default:
 		start := make(chan struct{})
-		ch.Progress.Total <- totalThreads(websites)
+		ch.Progress.Total <- totalThreads(configs)
 		var wg sync.WaitGroup
-		for _, w := range websites {
+		for _, w := range configs {
 			for range w.Threads {
 				wg.Go(func() { worker(start, w, ch) })
 			}

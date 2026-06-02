@@ -5,7 +5,6 @@ import (
 	"gorace/display"
 	"gorace/input"
 	"gorace/log"
-	"gorace/request"
 	"gorace/request/cache"
 
 	"os"
@@ -66,17 +65,18 @@ func main() {
 	}
 
 	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
-
+	_ = mode
 	// Worker
-	workerChans := request.WorkerChans{
-		Progress:  progress.Writer(),
-		CacheChan: cacheChan,
-	}
-	request.InitWorkers(websites, mode, workerChans)
+	/*
+		workerChans := request.WorkerChans{
+			Progress:  progress.Writer(),
+			CacheChan: cacheChan,
+		}
+		request.InitWorkers(websites, mode, workerChans)
 
-	fmt.Printf("\n\n")
-	<-session.Finished // Waits for display output of the current session to finish
-
+		fmt.Printf("\n\n")
+		<-session.Finished // Waits for display output of the current session to finish
+	*/
 }
 
 // ADD val padrao de threads pra 0

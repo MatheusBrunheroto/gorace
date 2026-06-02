@@ -18,48 +18,61 @@ The two following functions limit which inputs are acceptable. Examples of corre
 Anything that goes against the structure 'KEY=VALUE' for -b, -d and -w;
 or 'KEY:VALUE' for -H is rejected.
 */
-func splitSymbol(raw string, symbol string) (string, string, error) {
-	key := strings.SplitN(raw, symbol, 2)
-	if len(key) != 2 || key[0] == "" || key[1] == "" {
-		return "", "", errors.New("[-] Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
-	}
-	key[0] = strings.TrimSpace(key[0])
-	key[1] = strings.TrimSpace(key[1])
-	return key[0], key[1], nil
-}
-func filterKeys(raw string, entry *[]Pair, delimiter string) error {
 
-	// If has multiple headers, splits ':'
-	// por funcao aq
-	if !strings.Contains(raw, ",") {
-
-		k, v, err := splitSymbol(raw, delimiter)
-		if err != nil {
-			return err
+func findDelimiter(s string, values []string) (string, bool) {
+	for _, v := range values {
+		if strings.Contains(s, v) {
+			return v, true
 		}
-		*entry = append(*entry, Pair{Key: k, Value: v})
+	}
+	return "", false
+}
 
-	} else {
+func parseKeyValue(raw string, pairs *[]Pair) error {
 
-		var pairs []string
-		pairs = strings.Split(raw, ",")
+	if delimiter, found := findDelimiter(raw, []string{":", "="}); found {
+		parts := strings.SplitN(raw, delimiter, 2)
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key == "" || value == "" {
+			return errors.New("[-] Invalid key! -> " + raw + "\nCheck examples with gorace --help.")
+		}
+
+		*pairs = append(*pairs, Pair{Key: key, Value: value})
+		return nil
+	}
+
+	return errors.New("[-] No valid delimiter found in: " + raw)
+
+}
+
+func parsePairs(raw string) ([]Pair, error) {
+
+	var parsedPairs []Pair
+
+	// If contais ',' or '&' (has multiple keys), splits ':' or '='
+	if delimeter, found := findDelimiter(raw, []string{",", "&"}); found {
+
+		pairs := strings.Split(raw, delimeter)
 
 		for _, pair := range pairs {
 
-			k, v, err := splitSymbol(pair, delimiter)
-			if err != nil {
-				return err
+			if err := parseKeyValue(pair, &parsedPairs); err != nil {
+				return []Pair{}, err
 			}
-			*entry = append(*entry, Pair{Key: k, Value: v})
 
 		}
-
+	} else {
+		if err := parseKeyValue(raw, &parsedPairs); err != nil {
+			return []Pair{}, err
+		}
 	}
 
-	return nil
+	return parsedPairs, nil
 }
 
-func filterUrl(target *string) error {
+func normalizeUrl(target *string) error {
 
 	if *target == "" {
 		return errors.New("[-] No Website URL was informed (-U or --url)")
@@ -81,7 +94,7 @@ func filterUrl(target *string) error {
 	return nil
 }
 
-func filterMethod(method string) string {
+func normalizeMethod(method string) string {
 
 	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"}
 

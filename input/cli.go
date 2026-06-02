@@ -1,6 +1,7 @@
 package input
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -29,116 +30,46 @@ How parseCLI() works:
 
 // Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
 
-func handleField(current Config, flag string, value string) error {
-
-	var pairs []Pair
-	var err error
-
-	fields := map[string][]Pair{
-		"--headers":   current.Headers,
-		"--cookies":   current.Cookies,
-		"--data":      current.Data,
-		"--wordlists": current.Wordlists,
-	}
-
-	field, _ := fields[flag]
-	if pairs, err = parsePairs(value); err != nil { // parse pairs do anything with : or =
+func handleField(current *Config, flag string, raw string) error {
+	pairs, err := parsePairs(raw)
+	if err != nil {
 		return err
 	}
-	field = append(field, pairs...)
+
+	switch flag {
+	case "--headers":
+		current.Headers = append(current.Headers, pairs...)
+	case "--cookies":
+		current.Cookies = append(current.Cookies, pairs...)
+	case "--data":
+		current.Data = append(current.Data, pairs...)
+	case "--wordlist":
+		current.Wordlists = append(current.Wordlists, pairs...)
+	}
 	return nil
-
 }
-
 func parseCLI(args []string) ([]Config, error) {
 
 	flags := initFlags()
 	normalizeInputFlags(&args) // -f to --flag
 
-	configs, err := getConfigs(flags, args) // Will return non-wordlists vs wordlists
+	configs, err := getConfigs(flags, args) // May return files with Wordlists
 	if err != nil {
 		return []Config{}, err
 	}
 
-	////////////////////////////////////////
+	var websites []Config
 
-	for i := 0; i < len(flags["--url"].raw); i++ {
+	for _, c := range configs {
 
-		// Reset, so website 1 pairs doesn't reflect in website 2
-		// LEMBRAR OQ EU TAVA FAZENDO COM WORDLIST PELO GIT
-		fields["wordlists"].pairs = []Pair{}
-
-		// If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
-		if len(fields["wordlists"].pairs) > 0 {
-
-			filteredHeaders, expandedHeaders, err := handleWordlist(fields["headers"].pairs, fields["wordlists"].pairs)
+		if len(c.Wordlists) > 0 {
+			w, err := handleWordlist(c.copy()) // If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
 			if err != nil {
-				return []Website{}, err
+				return []Config{}, err
 			}
-			filteredCookies, expandedCookies, err := handleWordlist(fields["cookies"].pairs, fields["wordlists"].pairs)
-			if err != nil {
-				return []Website{}, err
-			}
-			filteredData, expandedData, err := handleWordlist(fields["data"].pairs, fields["wordlists"].pairs)
-			if err != nil {
-				return []Website{}, err
-			}
-
-			// Avoid loop not starting
-			if len(expandedHeaders) == 0 {
-				expandedHeaders = []Pair{{}}
-			}
-			if len(expandedCookies) == 0 {
-				expandedCookies = []Pair{{}}
-			}
-			if len(expandedData) == 0 {
-				expandedData = []Pair{{}}
-			}
-			for _, h := range expandedHeaders {
-				for _, c := range expandedCookies {
-					for _, d := range expandedData {
-
-						// Adding filteredKey before avoids newField being empty in case k = []
-						newHeaders := filteredHeaders
-						newCookies := filteredCookies
-						newData := filteredData
-
-						if h.Key != "" && h.Value != "" {
-							newHeaders = append(newHeaders, h)
-						}
-						if c.Key != "" && c.Value != "" {
-							newCookies = append(newCookies, c)
-						}
-						if d.Key != "" && d.Value != "" {
-							newData = append(newData, d)
-						}
-
-						w := Website{
-							Url:     flags["--url"].raw[i],    // Unique
-							Method:  flags["--method"].raw[i], // Unique
-							Headers: newHeaders,
-							Cookies: newCookies,
-							Data:    newData,
-							Threads: threads,
-							Delay:   delay,
-						}
-						websites = append(websites, w)
-
-					}
-				}
-			}
+			websites = append(websites, w...) // pode retornar mais de um
 		} else {
-
-			w := Website{
-				Url:     flags["--url"].raw[i],
-				Method:  flags["--method"].raw[i],
-				Headers: fields["headers"].pairs,
-				Cookies: fields["cookies"].pairs,
-				Data:    fields["data"].pairs,
-				Threads: threads,
-				Delay:   delay,
-			}
-			websites = append(websites, w)
+			websites = append(websites, c)
 		}
 
 	}
@@ -146,10 +77,16 @@ func parseCLI(args []string) ([]Config, error) {
 	return websites, nil
 }
 
+////////////////////////////////////////
+
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
 func RunCLI(args []string) ([]Config, string, error) {
 
-	var mode string = "flood"
+	if len(args)%2 != 0 {
+		return []Config{}, "", errors.New("[!] A flag is missing a parameter! Exiting...")
+	}
+
+	var mode string = "flood" // Default
 	modes := []string{"sequential", "round-sequential", "cascade", "round-cascade", "flood"}
 	var modeExists bool = false
 

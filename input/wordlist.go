@@ -3,7 +3,6 @@ package input
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"os"
 )
 
@@ -19,98 +18,125 @@ func readWordlists(path string) ([]string, error) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			return []string{}, err
-		}
-
 		words = append(words, scanner.Text())
 	}
-
+	if err := scanner.Err(); err != nil { // ✅ agora detecta
+		return []string{}, err
+	}
 	return words, nil
 }
 
-func insertWordlist(new_entry *[]Pair, placeholder string, path string, method string) error {
+func parseWordlist(words []string, field []Pair, pair Pair, isKey bool) []Pair {
 
-	words, err := readWordlists(path)
-	if err != nil {
-		return err
-	}
+	var expanded []Pair
 
 	for _, w := range words {
 
-		if method == "name" {
-			*new_entry = append(*new_entry, Pair{Key: w, Value: placeholder})
+		if isKey {
+			expanded = append(expanded, Pair{Key: w, Value: pair.Value})
 		} else {
-			*new_entry = append(*new_entry, Pair{Key: placeholder, Value: w})
+			expanded = append(expanded, Pair{Key: pair.Key, Value: w})
 		}
+	}
+	return expanded
+}
 
+func removeWordlistPlaceholder(key string, field *[]Pair) {
+	for i := range *field {
+		if (*field)[i].Key == key {
+			*field = append((*field)[:i], (*field)[i+1:]...)
+			i--
+		}
+	}
+}
+
+func insertsWordlist(original Config, expanded map[string][]Pair) []Config {
+
+	var newConfigs []Config
+	if len(expanded["Headers"]) == 0 {
+		expanded["Headers"] = []Pair{{}}
+	}
+	if len(expanded["Cookies"]) == 0 {
+		expanded["Cookies"] = []Pair{{}}
+	}
+	if len(expanded["Data"]) == 0 {
+		expanded["Data"] = []Pair{{}}
+	}
+	for _, h := range expanded["Headers"] {
+		for _, c := range expanded["Cookies"] {
+			for _, d := range expanded["Data"] {
+
+				new := Config{
+					Url:     original.Url,
+					Method:  original.Method,
+					Headers: append(original.Headers, h),
+					Cookies: append(original.Cookies, c),
+					Data:    append(original.Data, d),
+					Threads: original.Threads,
+					Delay:   original.Delay,
+				}
+				newConfigs = append(newConfigs, new)
+
+			}
+		}
 	}
 
-	return nil
+	return newConfigs
 }
 
 /*
-Map structures:
+-H 'key:value'
 
-	- wordlistsMap[placeholder] = path
+-H 'WORDLIST:value'
+-H 'key:WORDLIST'
 
-	Case key_name == placeholder:
-		- key_map[placeholder] = key_value
-	-> Add the words from the wordlist to new_entry[index][words] = key_value
-
-	Case key_value == placeholder:
-		- key_map[key_name] = placeholder
-	-> Add the words from the wordlist to new_entry[index][key_name] = words
-
-	Case key_name == placeholder && key_value == placeholder:
-		- key_map[placeholder1] = placeholder2
-	-> Requires different techniques
-
-
-	wordlist = {"placeholder":"path"}
-	key = {"name":"value"}
-	key = {"placeholder":"value"} -> key = {"open.path()":"value"}
 */
+// na verdade isso ta tudo errado, preciso salva separado
 
-func sliceToMap(wordlists []Pair) map[string]string {
-	wordlistsMap := make(map[string]string, len(wordlists))
-	for _, kv := range wordlists {
-		wordlistsMap[kv.Key] = kv.Value
+func handleWordlist(config Config) ([]Config, error) {
+
+	fields := map[string]*[]Pair{
+		"Headers": &config.Headers,
+		"Cookies": &config.Cookies,
+		"Data":    &config.Data,
 	}
-	return wordlistsMap
-}
-func handleWordlist(entry []Pair, wordlists []Pair) ([]Pair, []Pair, error) {
+	expanded := map[string][]Pair{
+		"Headers": []Pair{},
+		"Cookies": []Pair{},
+		"Data":    []Pair{},
+	}
 
-	var filtered []Pair
-	var wordlist []Pair
+	for _, wordlist := range config.Wordlists {
 
-	wordlistsMap := sliceToMap(wordlists) // If someone uses -w WORDLIST1=path1 and -w WORDLIST1=path2, the path1 is ignored
-
-	// First, copy the values on the key_map that aren't placeholders, the placeholders will go to insertWordlist
-	for _, kv := range entry {
-
-		// If key_name or key_value are placeholders, they can be called inside "wordlists"
-		_, keyIsPlaceholder := wordlistsMap[kv.Key]
-		_, valueIsPlaceholder := wordlistsMap[kv.Value]
-
-		if keyIsPlaceholder && valueIsPlaceholder {
-			fmt.Println("special case")
-
-		} else if keyIsPlaceholder {
-			if err := insertWordlist(&wordlist, kv.Value, wordlistsMap[kv.Key], "name"); err != nil {
-				return []Pair{}, []Pair{}, err
-			}
-		} else if valueIsPlaceholder {
-			if err := insertWordlist(&wordlist, kv.Key, wordlistsMap[kv.Value], "value"); err != nil {
-				return []Pair{}, []Pair{}, err
-			}
-
-		} else {
-			if kv.Key != "" && kv.Value != "" {
-				filtered = append(filtered, Pair{Key: kv.Key, Value: kv.Value}) // Adds non wordlist keys to the new_entry
-			}
+		words, err := readWordlists(wordlist.Value) // Path
+		if err != nil {
+			return []Config{}, err
 		}
-	}
+		// Headers, Cookies and Data
+		for name, field := range fields {
 
-	return filtered, wordlist, nil
+			// Field pairs, headers.key headers.value
+			for _, pair := range *field {
+
+				if pair.Key == wordlist.Key {
+					removeWordlistPlaceholder(pair.Key, field)
+					e := parseWordlist(words, *field, pair, true)
+					expanded[name] = append(expanded[name], e...)
+					continue
+				}
+				if pair.Value == wordlist.Key {
+					removeWordlistPlaceholder(pair.Value, field)
+					e := parseWordlist(words, *field, pair, true)
+					expanded[name] = append(expanded[name], e...)
+					continue
+				}
+
+			}
+
+		}
+
+	}
+	new := insertsWordlist(config, expanded)
+
+	return new, nil
 }

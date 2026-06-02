@@ -35,7 +35,7 @@ func getBody(rawData []input.Pair) io.Reader {
 	return body
 }
 
-func buildRequest(w input.Website) (*http.Request, error) {
+func buildRequest(w input.Config) (*http.Request, error) {
 
 	// DATA - Not mandatory, but the only way to insert in the request is by creating a body
 	request, err := http.NewRequest(w.Method, w.Url, getBody(w.Data)) // get body vem aqui
