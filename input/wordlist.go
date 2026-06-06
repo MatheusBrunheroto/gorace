@@ -6,18 +6,12 @@ import (
 	"os"
 )
 
-// OK
-func removeWordlistPlaceholder(key string, field *[]Pair) {
-	var filtered []Pair
-	for _, p := range *field {
-		if p.Key != key {
-			filtered = append(filtered, p)
-		}
-	}
-	*field = filtered
+type expansion struct {
+	Field       string
+	Placeholder string
+	Pairs       []Pair
 }
 
-// ok
 func readWordlists(path string) []string {
 
 	file, err := os.Open(path)
@@ -39,42 +33,18 @@ func readWordlists(path string) []string {
 	return words
 }
 
-func insertsWordlist(original Config, expanded map[string][]Pair) []Config {
+func removeWordlistPlaceholder(key string, field *[]Pair, isKey bool) {
+	var filtered []Pair
+	for _, p := range *field {
+		if p.Key != key && isKey {
+			filtered = append(filtered, p)
+		} else if p.Value != key && !isKey {
+			filtered = append(filtered, p)
 
-	var newConfigs []Config
-	if len(expanded["Headers"]) == 0 {
-		expanded["Headers"] = []Pair{{}}
-	}
-	if len(expanded["Cookies"]) == 0 {
-		expanded["Cookies"] = []Pair{{}}
-	}
-	if len(expanded["Data"]) == 0 {
-		expanded["Data"] = []Pair{{}}
-	}
-	for _, h := range expanded["Headers"] {
-		for _, c := range expanded["Cookies"] {
-			for _, d := range expanded["Data"] {
-
-				newFields := original.copy()
-
-				new := Config{
-					Url:     original.Url,
-					Method:  original.Method,
-					Headers: append(newFields.Headers, h),
-					Cookies: append(newFields.Cookies, c),
-					Data:    append(newFields.Data, d),
-					Threads: original.Threads,
-					Delay:   original.Delay,
-				}
-				newConfigs = append(newConfigs, new)
-
-			}
 		}
 	}
-
-	return newConfigs
+	*field = filtered
 }
-
 func parseWordlist(words []string, pair Pair, isKey bool) []Pair {
 
 	var expanded []Pair
@@ -89,11 +59,93 @@ func parseWordlist(words []string, pair Pair, isKey bool) []Pair {
 
 	return expanded
 }
+func getCombinations(expanded map[string][]Pair, placeholders []string, index int) [][]Pair {
 
-type Expansion struct {
-	Field       string
-	Placeholder string
-	Pairs       []Pair
+	if index == len(placeholders) {
+		return [][]Pair{{}} // base case: uma combinação vazia
+	}
+	var result [][]Pair
+	key := placeholders[index]
+	pairs := expanded[key]
+
+	rest := getCombinations(expanded, placeholders, index+1)
+
+	for _, pair := range pairs {
+		for _, combo := range rest {
+			newCombo := append([]Pair{pair}, combo...)
+			result = append(result, newCombo)
+		}
+	}
+
+	return result
+
+}
+
+func insertsWordlist(original Config, expanded []expansion) []Config {
+
+	var newConfigs []Config
+
+	expandedHeaders := make(map[string][]Pair)
+	expandedCookies := make(map[string][]Pair)
+	expandedData := make(map[string][]Pair)
+
+	for _, e := range expanded {
+
+		switch e.Field {
+		case "Headers":
+			expandedHeaders[e.Placeholder] = append(expandedHeaders[e.Placeholder], e.Pairs...)
+		case "Cookies":
+			expandedCookies[e.Placeholder] = append(expandedCookies[e.Placeholder], e.Pairs...)
+		case "Data":
+			expandedData[e.Placeholder] = append(expandedData[e.Placeholder], e.Pairs...)
+		}
+
+	}
+
+	var headerPlaceholders, cookiePlaceholders, dataPlaceholders []string
+	for p := range expandedHeaders {
+		headerPlaceholders = append(headerPlaceholders, p)
+	}
+	for p := range expandedCookies {
+		cookiePlaceholders = append(cookiePlaceholders, p)
+	}
+	for p := range expandedData {
+		dataPlaceholders = append(dataPlaceholders, p)
+	}
+
+	newHeaders := getCombinations(expandedHeaders, headerPlaceholders, 0)
+	newCookies := getCombinations(expandedCookies, cookiePlaceholders, 0)
+	newData := getCombinations(expandedData, dataPlaceholders, 0)
+
+	// se vazio, coloca uma combinação vazia pra o loop funcionar
+	if len(newHeaders) == 0 {
+		newHeaders = [][]Pair{{}}
+	}
+	if len(newCookies) == 0 {
+		newCookies = [][]Pair{{}}
+	}
+	if len(newData) == 0 {
+		newData = [][]Pair{{}}
+	}
+
+	for _, h := range newHeaders {
+		for _, c := range newCookies {
+			for _, d := range newData {
+				newFields := original.copy()
+				new := Config{
+					Url:     original.Url,
+					Method:  original.Method,
+					Headers: append(newFields.Headers, h...),
+					Cookies: append(newFields.Cookies, c...),
+					Data:    append(newFields.Data, d...),
+					Threads: original.Threads,
+					Delay:   original.Delay,
+				}
+				newConfigs = append(newConfigs, new)
+			}
+		}
+	}
+	return newConfigs
 }
 
 func handleWordlist(config Config) []Config {
@@ -103,28 +155,38 @@ func handleWordlist(config Config) []Config {
 		"Cookies": &config.Cookies,
 		"Data":    &config.Data,
 	}
-	expanded := make(map[string]map[string][]Pair)
 
+	var expansions []expansion
+	// var placeholder string
 	for _, wordlist := range config.Wordlists {
 
 		words := readWordlists(wordlist.Value) // Path
 
 		// Headers, Cookies and Data
 		for name, field := range fields {
-
 			// Field pairs, headers.key headers.value
 			for _, pair := range *field {
 
 				if pair.Key == wordlist.Key {
-					removeWordlistPlaceholder(pair.Key, field)
-					e := parseWordlist(words, pair, true)
-					expanded[name][pair.Key] = append(expanded[name][pair.Key], e...)
+
+					removeWordlistPlaceholder(pair.Key, field, true)
+					e := expansion{
+						Field:       name,
+						Placeholder: pair.Key,
+						Pairs:       parseWordlist(words, pair, true),
+					}
+					expansions = append(expansions, e)
 					continue
+
 				}
 				if pair.Value == wordlist.Key {
-					removeWordlistPlaceholder(pair.Value, field)
-					e := parseWordlist(words, pair, false)
-					expanded[name][pair.Value] = append(expanded[name][pair.Value], e...)
+					removeWordlistPlaceholder(pair.Value, field, false)
+					e := expansion{
+						Field:       name,
+						Placeholder: pair.Value,
+						Pairs:       parseWordlist(words, pair, false),
+					}
+					expansions = append(expansions, e)
 					continue
 				}
 
@@ -133,7 +195,6 @@ func handleWordlist(config Config) []Config {
 		}
 
 	}
-	fmt.Println(expanded)
-	return insertsWordlist(config, expanded)
 
+	return insertsWordlist(config, expansions)
 }
