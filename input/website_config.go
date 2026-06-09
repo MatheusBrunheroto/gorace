@@ -1,7 +1,6 @@
 package input
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -124,7 +123,6 @@ func getConfigs(flags map[string]string, args []string) []Config {
 		}
 
 		writeConfig(&current, alias, value)
-		fmt.Println(current)
 
 	}
 	configs = append(configs, current) // To save the Last URL

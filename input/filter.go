@@ -68,6 +68,9 @@ func parsePairs(raw string) []Pair {
 	return parsedPairs
 }
 
+//////////////////////////////////////
+//////////////////////////////////////
+
 func normalizeUrl(target *string) {
 
 	if *target == "" {

@@ -52,8 +52,6 @@ func parseCLI(args []string) []Config {
 	return websites
 }
 
-////////////////////////////////////////
-
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
 func RunCLI(args []string) ([]Config, string) {
 

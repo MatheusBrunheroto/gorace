@@ -2,8 +2,9 @@ package input
 
 import (
 	"bufio"
-	"fmt"
+	"math/rand"
 	"os"
+	"time"
 )
 
 type expansion struct {
@@ -29,19 +30,20 @@ func readWordlists(path string) []string {
 	if err := scanner.Err(); err != nil {
 		panic(err)
 	}
-	fmt.Println(words)
+
 	return words
 }
 
 func removeWordlistPlaceholder(key string, field *[]Pair, isKey bool) {
 	var filtered []Pair
+	removed := false
 	for _, p := range *field {
-		if p.Key != key && isKey {
-			filtered = append(filtered, p)
-		} else if p.Value != key && !isKey {
-			filtered = append(filtered, p)
-
+		match := (isKey && p.Key == key) || (!isKey && p.Value == key)
+		if match && !removed {
+			removed = true
+			continue
 		}
+		filtered = append(filtered, p)
 	}
 	*field = filtered
 }
@@ -62,14 +64,13 @@ func parseWordlist(words []string, pair Pair, isKey bool) []Pair {
 func getCombinations(expanded map[string][]Pair, placeholders []string, index int) [][]Pair {
 
 	if index == len(placeholders) {
-		return [][]Pair{{}} // base case: uma combinação vazia
+		return [][]Pair{{}}
 	}
-	var result [][]Pair
 	key := placeholders[index]
 	pairs := expanded[key]
-
 	rest := getCombinations(expanded, placeholders, index+1)
 
+	var result [][]Pair
 	for _, pair := range pairs {
 		for _, combo := range rest {
 			newCombo := append([]Pair{pair}, combo...)
@@ -99,7 +100,6 @@ func insertsWordlist(original Config, expanded []expansion) []Config {
 		case "Data":
 			expandedData[e.Placeholder] = append(expandedData[e.Placeholder], e.Pairs...)
 		}
-
 	}
 
 	var headerPlaceholders, cookiePlaceholders, dataPlaceholders []string
@@ -116,17 +116,6 @@ func insertsWordlist(original Config, expanded []expansion) []Config {
 	newHeaders := getCombinations(expandedHeaders, headerPlaceholders, 0)
 	newCookies := getCombinations(expandedCookies, cookiePlaceholders, 0)
 	newData := getCombinations(expandedData, dataPlaceholders, 0)
-
-	// se vazio, coloca uma combinação vazia pra o loop funcionar
-	if len(newHeaders) == 0 {
-		newHeaders = [][]Pair{{}}
-	}
-	if len(newCookies) == 0 {
-		newCookies = [][]Pair{{}}
-	}
-	if len(newData) == 0 {
-		newData = [][]Pair{{}}
-	}
 
 	for _, h := range newHeaders {
 		for _, c := range newCookies {
@@ -157,14 +146,14 @@ func handleWordlist(config Config) []Config {
 	}
 
 	var expansions []expansion
-	// var placeholder string
+
 	for _, wordlist := range config.Wordlists {
 
 		words := readWordlists(wordlist.Value) // Path
 
 		// Headers, Cookies and Data
 		for name, field := range fields {
-			// Field pairs, headers.key headers.value
+			// Field pairs -> headers.key headers.value...
 			for _, pair := range *field {
 
 				if pair.Key == wordlist.Key {
@@ -172,7 +161,7 @@ func handleWordlist(config Config) []Config {
 					removeWordlistPlaceholder(pair.Key, field, true)
 					e := expansion{
 						Field:       name,
-						Placeholder: pair.Key,
+						Placeholder: randomString(8),
 						Pairs:       parseWordlist(words, pair, true),
 					}
 					expansions = append(expansions, e)
@@ -183,7 +172,7 @@ func handleWordlist(config Config) []Config {
 					removeWordlistPlaceholder(pair.Value, field, false)
 					e := expansion{
 						Field:       name,
-						Placeholder: pair.Value,
+						Placeholder: randomString(8),
 						Pairs:       parseWordlist(words, pair, false),
 					}
 					expansions = append(expansions, e)
@@ -197,4 +186,14 @@ func handleWordlist(config Config) []Config {
 	}
 
 	return insertsWordlist(config, expansions)
+}
+
+func randomString(n int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = charset[r.Intn(len(charset))]
+	}
+	return string(b)
 }

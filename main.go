@@ -5,6 +5,7 @@ import (
 	"gorace/display"
 	"gorace/input"
 	"gorace/log"
+	"gorace/request"
 	"gorace/request/cache"
 
 	"os"
@@ -55,24 +56,18 @@ func main() {
 	// CLI (Read and filter the inputs)
 	websites, mode := input.RunCLI(os.Args[1:])
 
-	for _, w := range websites {
-		fmt.Println(w)
-		fmt.Println()
-	}
-
 	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
-	_ = mode
 	// Worker
-	/*
-		workerChans := request.WorkerChans{
-			Progress:  progress.Writer(),
-			CacheChan: cacheChan,
-		}
-		request.InitWorkers(websites, mode, workerChans)
 
-		fmt.Printf("\n\n")
-		<-session.Finished // Waits for display output of the current session to finish
-	*/
+	workerChans := request.WorkerChans{
+		Progress:  progress.Writer(),
+		CacheChan: cacheChan,
+	}
+	request.InitWorkers(websites, mode, workerChans)
+
+	fmt.Printf("\n\n")
+	<-session.Finished // Waits for display output of the current session to finish
+
 }
 
 // TODO, MODO de input direto de wordlist, MODOS DE rodar,
