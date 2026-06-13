@@ -33,7 +33,7 @@ func parseKeyValue(raw string) Pair {
 
 	delimiter, found := findDelimiter(raw, []string{":", "="})
 	if !found {
-		panic("[-] No valid delimiter found in: " + raw)
+		panic("[x] No valid delimiter found in: " + raw)
 	}
 
 	parts := strings.SplitN(raw, delimiter, 2)
@@ -42,7 +42,7 @@ func parseKeyValue(raw string) Pair {
 	value := strings.TrimSpace(parts[1])
 
 	if key == "" || value == "" {
-		panic("[-] Empty key or value! -> " + raw + "\nCheck examples with gorace --help.")
+		panic("[x] Empty key or value! -> " + raw + "\nCheck examples with gorace --help.")
 	}
 
 	return Pair{Key: key, Value: value}
@@ -74,10 +74,10 @@ func parsePairs(raw string) []Pair {
 func normalizeUrl(target *string) {
 
 	if *target == "" {
-		panic("[-] No Website URL was informed (-U or --url)")
+		panic("[x] No Website URL was informed (-U or --url)")
 	}
 	if strings.HasPrefix(*target, "-") {
-		panic("[-] Invalid URL for -U or --url -> " + *target)
+		panic("[x] Invalid URL for -u or --url -> " + *target)
 	}
 
 	if !strings.HasPrefix(*target, "http://") && !strings.HasPrefix(*target, "https://") {
@@ -87,7 +87,7 @@ func normalizeUrl(target *string) {
 
 	u, err := url.Parse(*target)
 	if err != nil || u.Host == "" {
-		panic("[-] Invalid URL -> " + *target)
+		panic("[x] Invalid URL -> " + *target)
 	}
 
 }
@@ -116,5 +116,5 @@ func normalizeMethod(method string) string {
 
 	fmt.Printf("[!] Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", method)
 	return "GET"
-	// COLOCAR REGEX
+
 }

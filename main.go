@@ -7,7 +7,6 @@ import (
 	"gorace/log"
 	"gorace/request"
 	"gorace/request/cache"
-
 	"os"
 )
 
@@ -55,6 +54,11 @@ func main() {
 
 	// CLI (Read and filter the inputs)
 	websites, mode := input.RunCLI(os.Args[1:])
+	_ = websites
+	_ = mode
+	for _, p := range websites {
+		fmt.Println(p)
+	}
 
 	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
 	// Worker
@@ -66,7 +70,7 @@ func main() {
 	request.InitWorkers(websites, mode, workerChans)
 
 	fmt.Printf("\n\n")
-	<-session.Finished // Waits for display output of the current session to finish
+	//<-session.Finished // Waits for display output of the current session to finish
 
 }
 
@@ -74,3 +78,4 @@ func main() {
 // AO inves de retornar os erros e tentar fazer funcionar denovo basta colocar o panic ao inves do erros.New
 // Fazer SINGLEPACKET, apenas pra modos FLOOD
 // Starts output
+// FAZER URL LER WORDLIST, SUPORTAR WORDLISTx, le a string inteira pra ver se contem

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -47,16 +48,20 @@ func removeWordlistPlaceholder(key string, field *[]Pair, isKey bool) {
 	}
 	*field = filtered
 }
-func parseWordlist(words []string, pair Pair, isKey bool) []Pair {
+func parseWordlist(words []string, pair Pair, wrap [2]string, isKey bool) []Pair {
 
 	var expanded []Pair
 
-	for _, w := range words {
+	for _, word := range words {
+
+		w := wrap[0] + word + wrap[1]
+
 		if isKey {
 			expanded = append(expanded, Pair{Key: w, Value: pair.Value})
 		} else {
 			expanded = append(expanded, Pair{Key: pair.Key, Value: w})
 		}
+
 	}
 
 	return expanded
@@ -137,6 +142,23 @@ func insertsWordlist(original Config, expanded []expansion) []Config {
 	return newConfigs
 }
 
+func filterPlaceholder(placeholder string, wordlistPlaceholder string) [2]string {
+	before, after, _ := strings.Cut(placeholder, wordlistPlaceholder)
+	return [2]string{before, after}
+}
+func handleExpansion(pair Pair, fieldName string, words []string, wordlistKey string, isKey bool) expansion {
+
+	target := pair.Key
+	if !isKey {
+		target = pair.Value
+	}
+	return expansion{
+		Field:       fieldName,
+		Placeholder: randomString(8),
+		Pairs:       parseWordlist(words, pair, filterPlaceholder(target, wordlistKey), isKey),
+	}
+
+}
 func handleWordlist(config Config) []Config {
 
 	fields := map[string]*[]Pair{
@@ -156,27 +178,19 @@ func handleWordlist(config Config) []Config {
 			// Field pairs -> headers.key headers.value...
 			for _, pair := range *field {
 
-				if pair.Key == wordlist.Key {
+				if strings.Contains(pair.Key, wordlist.Key) {
 
 					removeWordlistPlaceholder(pair.Key, field, true)
-					e := expansion{
-						Field:       name,
-						Placeholder: randomString(8),
-						Pairs:       parseWordlist(words, pair, true),
-					}
-					expansions = append(expansions, e)
+					expansions = append(expansions, handleExpansion(pair, name, words, wordlist.Key, true))
 					continue
 
 				}
-				if pair.Value == wordlist.Key {
+				if strings.Contains(pair.Value, wordlist.Key) {
+
 					removeWordlistPlaceholder(pair.Value, field, false)
-					e := expansion{
-						Field:       name,
-						Placeholder: randomString(8),
-						Pairs:       parseWordlist(words, pair, false),
-					}
-					expansions = append(expansions, e)
+					expansions = append(expansions, handleExpansion(pair, name, words, wordlist.Key, false))
 					continue
+
 				}
 
 			}
