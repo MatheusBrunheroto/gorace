@@ -10,6 +10,9 @@ import (
 	"os"
 )
 
+// ADicionar o verbosity como PARAMETRO PRA ONTEM,
+// aJUSTAR OS VERBOSE de cada mensagem
+
 // BASIC TEST: go run main.go -u '1.com' --threads 10 -u '2.com' --threads 20
 
 // 1. Start Cache, the cache channel will be used to avoid reprocessing websites to workers in worker.go.
@@ -36,7 +39,7 @@ import (
 
 func main() {
 
-	// Cache (will later on avoid buildRequest generating the same request multiple times)
+	// 1. Cache (will later on avoid buildRequest generating the same request multiple times)
 	cacheChan := make(chan cache.Operation)
 	go cache.Run(cacheChan) // OwO
 
@@ -46,30 +49,24 @@ func main() {
 		Succeeded: make(chan int),
 		Failed:    make(chan int),
 	}
+	finished := make(chan struct{})
+	logChan := make(chan log.Entry) // Panic([x]) are not read inside log, as it could run the error before actually stopping it
 
-	// Display
-	session := display.NewSession(progress.Reader())
-	go display.Run(session)
-	<-session.Ready // Waits for ascii_art.go
+	// 2. Display
+	display.Run(progress.Reader(), finished, logChan)
 
-	// CLI (Read and filter the inputs)
-	websites, mode := input.RunCLI(os.Args[1:])
-	_ = websites
-	_ = mode
-	for _, p := range websites {
-		fmt.Println(p)
-	}
+	// 3. CLI (Read and Filter)
+	websites, mode := input.RunCLI(os.Args[1:], logChan)
 
-	// session.Draw <- "⸺" // ⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺⸺
-	// Worker
-
+	// 4. Workers
 	workerChans := request.WorkerChans{
 		Progress:  progress.Writer(),
 		CacheChan: cacheChan,
 	}
-	request.InitWorkers(websites, mode, workerChans)
+	request.InitWorkers(websites, mode, workerChans, logChan)
 
 	fmt.Printf("\n\n")
+	<-finished
 	//<-session.Finished // Waits for display output of the current session to finish
 
 }

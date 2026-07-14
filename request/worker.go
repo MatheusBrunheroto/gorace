@@ -46,11 +46,11 @@ func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Re
 
 // Always ends up doing N threads to the first Config, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
+func worker(start <-chan struct{}, w input.Config, chans WorkerChans, logChan chan<- log.Entry) {
 
 	request, err := getOrBuildRequest(w, chans.CacheChan)
 	if err != nil {
-		fmt.Println(err)
+		logChan <- log.Entry{Text: err.Error(), Verbosity: 1}
 		return
 	}
 
@@ -62,13 +62,13 @@ func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
 	resp, err := client.Do(request)
 	if err != nil {
 		chans.Progress.Failed <- 1
-		fmt.Println(err)
+		logChan <- log.Entry{Text: err.Error(), Verbosity: 1}
 		return
 	}
 	_ = resp
 	respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		logChan <- log.Entry{Text: err.Error(), Verbosity: 1}
 		return
 	}
 	fmt.Println(w)

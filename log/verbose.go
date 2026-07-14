@@ -1,6 +1,10 @@
 package log
 
-import "fmt"
+import (
+	"fmt"
+
+	"atomicgo.dev/cursor"
+)
 
 // Determines whether an specific message can be displayed or not, based on --verbose input
 func shouldLog(userVerbosity int, messageVerbosity int) bool {
@@ -18,13 +22,27 @@ func shouldLog(userVerbosity int, messageVerbosity int) bool {
 
 }
 
-func Logger(logChannel chan LogMessage, userVerbosity int) {
+func Run(logChan chan Entry, userVerbosity int) {
+
+	progress := cursor.NewArea()
+	var lastProgress string
 
 	for {
-		message := <-logChannel
-		if shouldLog(userVerbosity, message.Verbosity) {
-			fmt.Println(message)
+
+		log := <-logChan // Eacn log contains it's own verbosity, which is compared to the
+
+		if log.Verbosity == 0 {
+			lastProgress = log.Text
+			progress.Update(lastProgress)
+			continue
 		}
+
+		if shouldLog(userVerbosity, log.Verbosity) {
+			progress.Clear()
+			fmt.Println(log.Text)
+			progress.Update(lastProgress)
+		}
+
 	}
 
 }

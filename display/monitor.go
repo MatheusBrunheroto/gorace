@@ -12,19 +12,19 @@ func progressBar(sent int, total int, amount int) string {
 	a := float32(amount)
 
 	percentage := (100 * s) / t
-	var bar string = "["
+	var bar string = ""
 
 	i := float32(1)
 	for ; i <= a; i++ {
 
 		if percentage >= i*(100/a) {
-			bar = bar + "#"
+			bar = bar + "▰"
 		} else {
-			bar = bar + "-"
+			bar = bar + "▱"
 		}
 
 	}
-	bar = bar + "]"
+
 	return bar
 
 }
@@ -34,9 +34,9 @@ func incrementIfOpen(counter *int, received bool) {
 		(*counter)++
 	}
 }
-func monitorProgress(barSize int, progress log.ProgressReader, finished chan<- struct{}) {
+func progressMonitor(barSize int, progress log.ProgressReader, finished chan<- struct{}, logChan chan<- log.Entry) {
 
-	total := <-progress.Total // Forces listener to stay off until wordlist reading finishes
+	total := <-progress.Total
 
 	var sent, succeeded, failed int
 	var completed, remaining int
@@ -58,7 +58,9 @@ func monitorProgress(barSize int, progress log.ProgressReader, finished chan<- s
 		remaining = total - completed
 
 		bar := progressBar(completed, total, barSize)
-		fmt.Printf("\r\033[K%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, succeeded, remaining)
+		line := fmt.Sprintf("%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, succeeded, remaining)
+
+		logChan <- log.Entry{Text: line, Verbosity: 0}
 
 		if completed == total {
 			finished <- struct{}{}

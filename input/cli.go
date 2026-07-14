@@ -1,7 +1,8 @@
 package input
 
 import (
-	"fmt"
+	"gorace/log"
+	"strings"
 )
 
 /* The command MUST follow:
@@ -29,12 +30,12 @@ How parseCLI() works:
 
 // Take the abreviation -f of --flag, and turns it into --flag, because it makes dealing with the flags from initFlags()
 
-func parseCLI(args []string) []Config {
+func parseCLI(args []string, log chan<- log.Entry) []Config {
 
 	flags := initFlags()
 	normalizeInputFlags(&args) // -f to --flag
 
-	configs := getConfigs(flags, args) // May return files with Wordlists
+	configs := getConfigs(flags, args, log) // May return files with Wordlists
 
 	var websites []Config
 
@@ -53,10 +54,13 @@ func parseCLI(args []string) []Config {
 }
 
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
-func RunCLI(args []string) ([]Config, string) {
+func RunCLI(args []string, logChan chan<- log.Entry) ([]Config, string) {
+
+	bar := strings.Repeat("⸺", 30)
+	logChan <- log.Entry{Text: bar + "\n", Verbosity: 1}
 
 	if len(args)%2 != 0 {
-		panic("[!] A flag is missing a parameter! Exiting...")
+		panic("[x] A flag is missing a parameter! Exiting...")
 	}
 
 	var mode string = "flood" // Default
@@ -81,11 +85,12 @@ func RunCLI(args []string) ([]Config, string) {
 		}
 	}
 	if !modeExists {
-		fmt.Println("[!] Mode wasn't identified, using \"flood\" as default...")
+		logChan <- log.Entry{Text: "[!] Mode wasn't identified, using \"flood\" as default...", Verbosity: 1}
 	}
 
-	configs := parseCLI(args)
-	fmt.Printf("[+] Input read successfully!\n\n")
+	configs := parseCLI(args, logChan)
+	logChan <- log.Entry{Text: "[+] Input read successfully!\n", Verbosity: 1}
+	logChan <- log.Entry{Text: bar + "\n", Verbosity: 1}
 
 	return configs, mode
 

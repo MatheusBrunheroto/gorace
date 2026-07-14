@@ -1,23 +1,20 @@
 package input
 
 import (
+	"gorace/log"
 	"strconv"
 )
 
 /*
-	 gorace -u 'url' -H 'Content-Type: application/json'
+	gorace -u 'url' -H 'Content-Type: application/json'
 
-		Arguments -> "-u", "url", "-H", "Content-Type: application/json"
-		Flags -> "-u", "-H"
-		Parameter ("-u") -> "url"
+	Arguments -> "-u", "url", "-H", "Content-Type: application/json"
+	Flags -> "-u", "-H"
+	Parameter ("-u") -> "url"
 
-		Headers -> pair
-		(Header) KeyName -> "Content-Type"
-		(Header) Pair -> "application/json"
-
-So, the struct PAIR will have:
-  - The address of the PARAMETERS provided by the FLAGS
-  - The key and key PAIR
+	Headers -> pair
+	(Header) KeyName -> "Content-Type"
+	(Header) Pair -> "application/json"
 */
 
 type Pair struct {
@@ -61,23 +58,22 @@ func defaultConfig() Config {
 	}
 }
 
-func writeConfig(current *Config, flag string, raw string) {
+func writeConfig(current *Config, flag string, raw string, logChan chan<- log.Entry) {
 
 	switch flag {
 
-	// Only one flag can be called
+	// Only one flag
 	case "--url":
-		normalizeUrl(&raw)
+		normalizeUrl(&raw, logChan)
 		current.Url = raw
-
 	case "--method":
-		current.Method = normalizeMethod(raw)
+		current.Method = normalizeMethod(raw, logChan)
 	case "--threads":
 		current.Threads, _ = strconv.Atoi(raw)
 	case "--delay":
 		current.Delay, _ = strconv.Atoi(raw)
 
-	// One or more flags can be called
+	// One or more flags
 	case "--headers", "--cookies", "--data", "--wordlist":
 
 		pairs := parsePairs(raw)
@@ -97,12 +93,11 @@ func writeConfig(current *Config, flag string, raw string) {
 
 }
 
-func getConfigs(flags map[string]string, args []string) []Config {
+func getConfigs(flags map[string]string, args []string, log chan<- log.Entry) []Config {
 
 	var configs []Config
 	current := defaultConfig()
 
-	// se flag url, modifica Config.URL
 	var alias, value string
 	for i := 0; i < len(args); i++ {
 
@@ -122,7 +117,7 @@ func getConfigs(flags map[string]string, args []string) []Config {
 			current = defaultConfig()                 // Set Current Config to Default
 		}
 
-		writeConfig(&current, alias, value)
+		writeConfig(&current, alias, value, log)
 
 	}
 	configs = append(configs, current) // To save the Last URL

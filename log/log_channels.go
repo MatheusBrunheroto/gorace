@@ -1,7 +1,7 @@
 package log
 
-type LogMessage struct {
-	Message   string
+type Entry struct {
+	Text      string
 	Verbosity int
 }
 

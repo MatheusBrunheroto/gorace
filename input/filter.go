@@ -1,7 +1,7 @@
 package input
 
 import (
-	"fmt"
+	"gorace/log"
 	"net/url"
 	"strings"
 )
@@ -71,7 +71,7 @@ func parsePairs(raw string) []Pair {
 //////////////////////////////////////
 //////////////////////////////////////
 
-func normalizeUrl(target *string) {
+func normalizeUrl(target *string, logChan chan<- log.Entry) {
 
 	if *target == "" {
 		panic("[x] No Website URL was informed (-U or --url)")
@@ -82,7 +82,7 @@ func normalizeUrl(target *string) {
 
 	if !strings.HasPrefix(*target, "http://") && !strings.HasPrefix(*target, "https://") {
 		*target = "https://" + *target
-		fmt.Println("[!] URL must start with http:// or https:// -> New url: " + *target)
+		logChan <- log.Entry{Text: "[!] URL must start with http:// or https:// -> New url: " + *target, Verbosity: 1}
 	}
 
 	u, err := url.Parse(*target)
@@ -92,19 +92,19 @@ func normalizeUrl(target *string) {
 
 }
 
-func normalizeMethod(method string) string {
+func normalizeMethod(method string, logChan chan<- log.Entry) string {
 
 	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"}
 
 	if method == "" {
-		fmt.Println("[!] No method informed (-X or --method), \"GET\" will be used...")
+		logChan <- log.Entry{Text: "[!] No method informed (-X or --method), \"GET\" will be used...", Verbosity: 1}
 		return "GET"
 	}
 
 	method = strings.ToUpper(method)
 
 	if strings.Contains(method, " ") {
-		fmt.Println("[!] Inserted method contains a SPACE character, removing...")
+		logChan <- log.Entry{Text: "[!] Inserted method contains a SPACE character, removing...", Verbosity: 1}
 		method = strings.ReplaceAll(method, " ", "")
 	}
 
@@ -113,8 +113,7 @@ func normalizeMethod(method string) string {
 			return method
 		}
 	}
-
-	fmt.Printf("[!] Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", method)
+	logChan <- log.Entry{Text: "[!] Method \"%s\" not recognized within [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT], proceeding anyways...\n", Verbosity: 1}
 	return "GET"
 
 }

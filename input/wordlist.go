@@ -18,7 +18,7 @@ func readWordlists(path string) []string {
 
 	file, err := os.Open(path)
 	if err != nil {
-		panic("Invalid path -> " + path)
+		panic("[x] Invalid path -> " + path)
 	}
 	defer file.Close()
 

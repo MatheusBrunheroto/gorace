@@ -1,8 +1,7 @@
 package display
 
 import (
-	"fmt"
-	"strings"
+	"gorace/log"
 )
 
 /*
@@ -27,29 +26,11 @@ REQUESTS RESPONSES
 [##################--------] -> Sent: [i] Complete: [j] Remaining: [k]
 */
 
-func Run(session Session) error {
+func Run(progress log.ProgressReader, finished chan struct{}, logChan chan log.Entry) {
 
-	barSize, err := handleAsciiArt()
-	if err != nil {
-		fmt.Println(err)
-	}
+	// 1. Logo
+	handleAsciiArt()
+	go log.Run(logChan, 1) // ler a bosta
+	go progressMonitor(30, progress, finished, logChan)
 
-	session.Ready <- struct{}{}
-
-	fmt.Printf("%s\n\n", strings.Repeat("⸺", barSize/2))
-
-	monitorFinished := make(chan struct{})
-	go monitorProgress(barSize, session.Progress, monitorFinished) // +2 for some reason fixes a lot of imprecisions
-
-	for {
-		select {
-
-		case <-monitorFinished:
-			session.Finished <- struct{}{}
-			return nil
-		}
-
-	}
-
-	// return nil
 }
