@@ -26,11 +26,10 @@ REQUESTS RESPONSES
 [##################--------] -> Sent: [i] Complete: [j] Remaining: [k]
 */
 
-func Run(progress log.ProgressReader, finished chan struct{}, logChan chan log.Entry) {
+func Run(progress log.ProgressReader, logChan chan log.Entry) {
 
 	// 1. Logo
 	handleAsciiArt()
-	go log.Run(logChan, 1) // ler a bosta
-	go progressMonitor(30, progress, finished, logChan)
+	go progressMonitor(60, progress, logChan)
 
 }

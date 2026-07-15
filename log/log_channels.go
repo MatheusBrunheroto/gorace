@@ -10,18 +10,21 @@ type Progress struct {
 	Sent      chan int
 	Succeeded chan int
 	Failed    chan int
+	Finished  chan struct{}
 }
 type ProgressReader struct {
 	Total     <-chan int
 	Sent      <-chan int
 	Succeeded <-chan int
 	Failed    <-chan int
+	Finished  chan struct{}
 }
 type ProgressWriter struct {
 	Total     chan<- int
 	Sent      chan<- int
 	Succeeded chan<- int
 	Failed    chan<- int
+	Finished  chan struct{}
 }
 
 func (p Progress) Reader() ProgressReader {
@@ -30,6 +33,7 @@ func (p Progress) Reader() ProgressReader {
 		Sent:      p.Sent,
 		Succeeded: p.Succeeded,
 		Failed:    p.Failed,
+		Finished:  p.Finished,
 	}
 }
 func (p Progress) Writer() ProgressWriter {
@@ -38,5 +42,6 @@ func (p Progress) Writer() ProgressWriter {
 		Sent:      p.Sent,
 		Succeeded: p.Succeeded,
 		Failed:    p.Failed,
+		Finished:  p.Finished,
 	}
 }

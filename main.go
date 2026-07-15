@@ -10,9 +10,6 @@ import (
 	"os"
 )
 
-// ADicionar o verbosity como PARAMETRO PRA ONTEM,
-// aJUSTAR OS VERBOSE de cada mensagem
-
 // BASIC TEST: go run main.go -u '1.com' --threads 10 -u '2.com' --threads 20
 
 // 1. Start Cache, the cache channel will be used to avoid reprocessing websites to workers in worker.go.
@@ -39,40 +36,41 @@ import (
 
 func main() {
 
-	// 1. Cache (will later on avoid buildRequest generating the same request multiple times)
-	cacheChan := make(chan cache.Operation)
-	go cache.Run(cacheChan) // OwO
-
+	global := input.GlobalFlags{Mode: "flood", Verbosity: 1}
 	progress := log.Progress{
 		Total:     make(chan int),
 		Sent:      make(chan int),
 		Succeeded: make(chan int),
 		Failed:    make(chan int),
+		Finished:  make(chan struct{}),
 	}
-	finished := make(chan struct{})
-	logChan := make(chan log.Entry) // Panic([x]) are not read inside log, as it could run the error before actually stopping it
 
-	// 2. Display
-	display.Run(progress.Reader(), finished, logChan)
+	// 1. Cache (will later on avoid buildRequest generating the same request multiple times)
+	cacheChan := make(chan cache.Operation)
+	go cache.Run(cacheChan) // OwO
 
-	// 3. CLI (Read and Filter)
-	websites, mode := input.RunCLI(os.Args[1:], logChan)
+	// 2. Logger (default verbosity = 1)
+	logChan := make(chan log.Entry)
+	go log.Run(logChan, &global.Verbosity) // [x] Panic() are not read inside log, as it could run the error before actually stopping it
 
-	// 4. Workers
+	// 3. Display
+	display.Run(progress.Reader(), logChan)
+
+	// 4. CLI (Read and Filter)
+	websites := input.CLI(os.Args[1:], &global, logChan)
+
+	// 5. Workers
 	workerChans := request.WorkerChans{
 		Progress:  progress.Writer(),
 		CacheChan: cacheChan,
 	}
-	request.InitWorkers(websites, mode, workerChans, logChan)
+	request.InitWorkers(websites, global.Mode, workerChans, logChan)
 
 	fmt.Printf("\n\n")
-	<-finished
-	//<-session.Finished // Waits for display output of the current session to finish
+	<-progress.Finished // Waits for display output of the current session to finish
 
 }
 
-// TODO, MODO de input direto de wordlist, MODOS DE rodar,
-// AO inves de retornar os erros e tentar fazer funcionar denovo basta colocar o panic ao inves do erros.New
 // Fazer SINGLEPACKET, apenas pra modos FLOOD
 // Starts output
 // FAZER URL LER WORDLIST, SUPORTAR WORDLISTx, le a string inteira pra ver se contem

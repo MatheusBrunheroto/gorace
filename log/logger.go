@@ -22,14 +22,14 @@ func shouldLog(userVerbosity int, messageVerbosity int) bool {
 
 }
 
-func Run(logChan chan Entry, userVerbosity int) {
+func Run(logChan chan Entry, userVerbosity *int) {
 
 	progress := cursor.NewArea()
 	var lastProgress string
 
 	for {
 
-		log := <-logChan // Eacn log contains it's own verbosity, which is compared to the
+		log := <-logChan // Each log contains it's own verbosity, which is compared to the user's requested one
 
 		if log.Verbosity == 0 {
 			lastProgress = log.Text
@@ -37,7 +37,7 @@ func Run(logChan chan Entry, userVerbosity int) {
 			continue
 		}
 
-		if shouldLog(userVerbosity, log.Verbosity) {
+		if shouldLog(*userVerbosity, log.Verbosity) {
 			progress.Clear()
 			fmt.Println(log.Text)
 			progress.Update(lastProgress)

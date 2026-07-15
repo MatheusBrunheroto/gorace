@@ -18,7 +18,6 @@ Anything that goes against the structure 'KEY=VALUE' for -b, -d and -w;
 or 'KEY:VALUE' for -H is rejected.
 */
 
-// OK
 func findDelimiter(s string, values []string) (string, bool) {
 	for _, v := range values {
 		if strings.Contains(s, v) {
@@ -28,7 +27,6 @@ func findDelimiter(s string, values []string) (string, bool) {
 	return "", false
 }
 
-// OK
 func parseKeyValue(raw string) Pair {
 
 	delimiter, found := findDelimiter(raw, []string{":", "="})
@@ -48,7 +46,6 @@ func parseKeyValue(raw string) Pair {
 	return Pair{Key: key, Value: value}
 }
 
-// OK
 func parsePairs(raw string) []Pair {
 
 	var parsedPairs []Pair

@@ -2,6 +2,7 @@ package input
 
 import (
 	"gorace/log"
+	"strconv"
 	"strings"
 )
 
@@ -42,8 +43,8 @@ func parseCLI(args []string, log chan<- log.Entry) []Config {
 	for _, c := range configs {
 
 		if len(c.Wordlists) > 0 {
-			w := handleWordlist(c.copy())     // If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
-			websites = append(websites, w...) // pode retornar mais de um
+			w := handleWordlist(c.copy()) // If any wordlist was registered, all the headers, cookies and data placeholders registered before will be replaced
+			websites = append(websites, w...)
 		} else {
 			websites = append(websites, c)
 		}
@@ -53,45 +54,71 @@ func parseCLI(args []string, log chan<- log.Entry) []Config {
 	return websites
 }
 
-// Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
-func RunCLI(args []string, logChan chan<- log.Entry) ([]Config, string) {
+type GlobalFlags struct {
+	Mode      string
+	Verbosity int
+}
 
-	bar := strings.Repeat("⸺", 30)
-	logChan <- log.Entry{Text: bar + "\n", Verbosity: 1}
+// Mode and Verbosity
+func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entry) {
 
-	if len(args)%2 != 0 {
-		panic("[x] A flag is missing a parameter! Exiting...")
-	}
-
-	var mode string = "flood" // Default
 	modes := []string{"sequential", "round-sequential", "cascade", "round-cascade", "flood"}
 	var modeExists bool = false
 
 	for i, flag := range args {
 
 		if flag == "-m" || flag == "--mode" {
-
 			verifyMode := args[i+1]
-			for _, m := range modes {
 
+			for _, m := range modes {
 				if verifyMode == m {
 					modeExists = true
-					mode = verifyMode
+					global.Mode = verifyMode
 					break
 				}
-
 			}
 
 		}
+
+		if flag == "-v" || flag == "--verbose" {
+			if v, err := strconv.Atoi(args[i+1]); err == nil {
+
+				switch {
+				case v < 0:
+					global.Verbosity = 0
+				case v >= 4:
+					global.Verbosity = 4
+				default:
+					global.Verbosity = v
+				}
+
+			}
+		}
+
 	}
 	if !modeExists {
 		logChan <- log.Entry{Text: "[!] Mode wasn't identified, using \"flood\" as default...", Verbosity: 1}
 	}
 
+}
+
+// Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
+func CLI(args []string, global *GlobalFlags, logChan chan<- log.Entry) []Config {
+
+	if len(args)%2 != 0 {
+		panic("[x] A flag is missing a parameter! Exiting...")
+	}
+
+	// Flags that aren't related to the website request struct (Mode and Verbosity)
+	readGlobalFlags(args, global, logChan)
+
+	bar := strings.Repeat("⸺", 30)
+	logChan <- log.Entry{Text: bar + "\n", Verbosity: 0}
+
 	configs := parseCLI(args, logChan)
 	logChan <- log.Entry{Text: "[+] Input read successfully!\n", Verbosity: 1}
 	logChan <- log.Entry{Text: bar + "\n", Verbosity: 1}
 
-	return configs, mode
+	return configs
 
 }

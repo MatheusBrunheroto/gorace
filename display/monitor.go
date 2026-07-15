@@ -34,7 +34,7 @@ func incrementIfOpen(counter *int, received bool) {
 		(*counter)++
 	}
 }
-func progressMonitor(barSize int, progress log.ProgressReader, finished chan<- struct{}, logChan chan<- log.Entry) {
+func progressMonitor(barSize int, progress log.ProgressReader, logChan chan<- log.Entry) {
 
 	total := <-progress.Total
 
@@ -63,7 +63,7 @@ func progressMonitor(barSize int, progress log.ProgressReader, finished chan<- s
 		logChan <- log.Entry{Text: line, Verbosity: 0}
 
 		if completed == total {
-			finished <- struct{}{}
+			progress.Finished <- struct{}{}
 			return
 		}
 
