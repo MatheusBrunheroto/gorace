@@ -2,7 +2,6 @@ package request
 
 import (
 	"gorace/input"
-	"gorace/log"
 	"sync"
 )
 
@@ -33,7 +32,7 @@ Create N channels:
 */
 
 /**/
-func runWorkers(configs []input.Config, round bool, sequential bool, iterations int, ch WorkerChans, logChan chan<- log.Entry) {
+func runWorkers(configs []input.Config, round bool, sequential bool, iterations int, ch WorkerChans) {
 
 	var outerWg sync.WaitGroup
 
@@ -49,13 +48,13 @@ func runWorkers(configs []input.Config, round bool, sequential bool, iterations 
 		// If round, will send len(configs)
 		if round {
 			for _, w := range configs {
-				currentWg.Go(func() { worker(start, w, ch, logChan) })
+				currentWg.Go(func() { worker(start, w, ch) })
 			}
 
 		} else {
 			w := configs[i]
 			for t := 0; t < w.Threads; t++ {
-				currentWg.Go(func() { worker(start, w, ch, logChan) })
+				currentWg.Go(func() { worker(start, w, ch) })
 			}
 		}
 		close(start)
@@ -73,7 +72,7 @@ func runWorkers(configs []input.Config, round bool, sequential bool, iterations 
 
 }
 
-func InitWorkers(configs []input.Config, mode string, ch WorkerChans, logChan chan<- log.Entry) { // Intended behavior is below the function
+func InitWorkers(configs []input.Config, mode string, ch WorkerChans) { // Intended behavior is below the function
 
 	// Easier to see the init parameters
 	const ROUND, NORMAL bool = true, false
@@ -84,20 +83,20 @@ func InitWorkers(configs []input.Config, mode string, ch WorkerChans, logChan ch
 	// After N threads of an URL requests were sent to worker, waits for them to finish before starting next URL requests
 	case "sequential":
 		ch.Progress.Total <- totalThreads(configs)
-		runWorkers(configs, NORMAL, SEQUENTIAL, len(configs), ch, logChan)
+		runWorkers(configs, NORMAL, SEQUENTIAL, len(configs), ch)
 	// Same as sequential, but doesn't wait for its requests to finish before starting the next URL requests
 	case "cascade":
 		ch.Progress.Total <- totalThreads(configs)
-		runWorkers(configs, NORMAL, CASCADE, len(configs), ch, logChan)
+		runWorkers(configs, NORMAL, CASCADE, len(configs), ch)
 
 	// Sequential's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-sequential":
 		ch.Progress.Total <- maxThreads(configs) * len(configs)
-		runWorkers(configs, ROUND, SEQUENTIAL, maxThreads(configs), ch, logChan)
+		runWorkers(configs, ROUND, SEQUENTIAL, maxThreads(configs), ch)
 	// Cascade's behaviour, but cycles through the URLs requests for N times, N = largest amount of threads informed
 	case "round-cascade":
 		ch.Progress.Total <- maxThreads(configs) * len(configs)
-		runWorkers(configs, ROUND, CASCADE, maxThreads(configs), ch, logChan)
+		runWorkers(configs, ROUND, CASCADE, maxThreads(configs), ch)
 
 	// This is the default mode "flood", group all the requests and fire them at the exact same moment
 	default:
@@ -106,7 +105,7 @@ func InitWorkers(configs []input.Config, mode string, ch WorkerChans, logChan ch
 		var wg sync.WaitGroup
 		for _, w := range configs {
 			for range w.Threads {
-				wg.Go(func() { worker(start, w, ch, logChan) })
+				wg.Go(func() { worker(start, w, ch) })
 			}
 		}
 		close(start)

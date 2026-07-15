@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gorace/input"
 	"gorace/log"
+	"gorace/log/verbose"
 	"gorace/request/cache"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 type WorkerChans struct {
 	Progress  log.ProgressWriter
 	CacheChan chan cache.Operation
+	LogChan   chan<- log.Entry
 }
 
 func computeHash(w input.Config) uint64 {
@@ -24,7 +26,7 @@ func computeHash(w input.Config) uint64 {
 }
 
 // Checks for request existence in cache, if it doesn't exist, create a new and insert in cache
-func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Request, error) {
+func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Request, uint64, bool, error) {
 
 	var request *http.Request
 	var err error
@@ -33,28 +35,30 @@ func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Re
 
 	if copy := cache.Get(hash, cacheChan); copy != nil {
 		request = copy.Clone(context.Background()) // Does not clone BODY
-		return request, nil
+		return request, hash, true, nil
 	}
 
 	if request, err = buildRequest(w); err != nil {
-		return nil, err
+		return nil, 0, false, err
 	}
 	cache.Insert(hash, request, cacheChan)
-	return request, nil
+	return request, hash, false, nil
 
 }
 
 // Always ends up doing N threads to the first Config, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(start <-chan struct{}, w input.Config, chans WorkerChans, logChan chan<- log.Entry) {
+func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
 
-	request, err := getOrBuildRequest(w, chans.CacheChan)
+	request, hash, hit, err := getOrBuildRequest(w, chans.CacheChan)
 	if err != nil {
-		logChan <- log.Entry{Text: err.Error(), Verbosity: 1}
+		chans.LogChan <- log.Entry{Text: err.Error(), Verbosity: 1}
 		return
 	}
 
+	verbose.Worker(w, hash, hit, chans.LogChan)
 	<-start
+
 	time.Sleep(time.Duration(w.Delay) * time.Millisecond)
 	chans.Progress.Sent <- 1
 
@@ -62,17 +66,17 @@ func worker(start <-chan struct{}, w input.Config, chans WorkerChans, logChan ch
 	resp, err := client.Do(request)
 	if err != nil {
 		chans.Progress.Failed <- 1
-		logChan <- log.Entry{Text: err.Error(), Verbosity: 1}
+		verbose.WorkerError(hash, err.Error(), chans.LogChan)
 		return
 	}
 	_ = resp
 	respbody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logChan <- log.Entry{Text: err.Error(), Verbosity: 1}
+		verbose.WorkerError(hash, err.Error(), chans.LogChan)
 		return
 	}
-	fmt.Println(w)
-	fmt.Println(string(respbody))
+
+	chans.LogChan <- log.Entry{Text: string(respbody), Verbosity: 3}
 	resp.Body.Close()
 
 	chans.Progress.Succeeded <- 1

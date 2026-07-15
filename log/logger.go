@@ -9,7 +9,7 @@ import (
 // Determines whether an specific message can be displayed or not, based on --verbose input
 func shouldLog(userVerbosity int, messageVerbosity int) bool {
 
-	if userVerbosity == 1 { // Only prints the simplest logs
+	if userVerbosity == 1 && messageVerbosity <= 1 { // Only prints the simplest logs
 		return true
 	}
 	if userVerbosity == 2 && messageVerbosity <= 2 { // Prints logs from verbose level 1 and 2

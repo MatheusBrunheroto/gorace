@@ -2,6 +2,7 @@ package display
 
 import (
 	"gorace/log"
+	"strings"
 )
 
 /*
@@ -26,10 +27,12 @@ REQUESTS RESPONSES
 [##################--------] -> Sent: [i] Complete: [j] Remaining: [k]
 */
 
-func Run(progress log.ProgressReader, logChan chan log.Entry) {
+func Separator(v int, logChan chan log.Entry) {
+	separator := strings.Repeat("⸺", 30)
+	logChan <- log.Entry{Text: separator + "\n", Verbosity: v}
+}
 
-	// 1. Logo
+func Run(progress log.ProgressReader, logChan chan log.Entry) {
 	handleAsciiArt()
 	go progressMonitor(60, progress, logChan)
-
 }

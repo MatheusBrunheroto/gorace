@@ -36,8 +36,9 @@ import (
 
 func main() {
 
-	global := input.GlobalFlags{Mode: "flood", Verbosity: 1}
+	global := input.GlobalFlags{Mode: "flood", Match: "", Verbosity: 1}
 	progress := log.Progress{
+		Started:   make(chan struct{}),
 		Total:     make(chan int),
 		Sent:      make(chan int),
 		Succeeded: make(chan int),
@@ -55,16 +56,19 @@ func main() {
 
 	// 3. Display
 	display.Run(progress.Reader(), logChan)
+	display.Separator(1, logChan)
 
 	// 4. CLI (Read and Filter)
 	websites := input.CLI(os.Args[1:], &global, logChan)
+	display.Separator(1, logChan)
 
 	// 5. Workers
 	workerChans := request.WorkerChans{
 		Progress:  progress.Writer(),
 		CacheChan: cacheChan,
+		LogChan:   logChan,
 	}
-	request.InitWorkers(websites, global.Mode, workerChans, logChan)
+	request.InitWorkers(websites, global.Mode, workerChans)
 
 	fmt.Printf("\n\n")
 	<-progress.Finished // Waits for display output of the current session to finish
