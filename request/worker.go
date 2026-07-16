@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"fmt"
 	"gorace/input"
 	"gorace/log"
 	"gorace/log/verbose"
@@ -10,8 +9,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	"github.com/cespare/xxhash/v2"
 )
 
 type WorkerChans struct {
@@ -20,21 +17,16 @@ type WorkerChans struct {
 	LogChan   chan<- log.Entry
 }
 
-func computeHash(w input.Config) uint64 {
-	code := fmt.Sprintf("%s%s%s%s%s%d", w.Url, w.Method, w.Headers, w.Cookies, w.Data, w.Threads)
-	return xxhash.Sum64String(code)
-}
-
 // Checks for request existence in cache, if it doesn't exist, create a new and insert in cache
 func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Request, uint64, bool, error) {
 
 	var request *http.Request
 	var err error
 
-	hash := computeHash(w)
+	hash := cache.ComputeHash(w)
 
 	if copy := cache.Get(hash, cacheChan); copy != nil {
-		request = copy.Clone(context.Background()) // Does not clone BODY
+		request = copy.Clone(context.Background()) // !!! Does not clone BODY
 		return request, hash, true, nil
 	}
 
@@ -42,7 +34,7 @@ func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Re
 		return nil, 0, false, err
 	}
 	cache.Insert(hash, request, cacheChan)
-	return request, hash, false, nil
+	return request.Clone(context.Background()), hash, false, nil
 
 }
 
@@ -56,8 +48,8 @@ func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
 		return
 	}
 
-	verbose.Worker(w, hash, hit, chans.LogChan)
 	<-start
+	verbose.Worker(w, hash, hit, chans.LogChan)
 
 	time.Sleep(time.Duration(w.Delay) * time.Millisecond)
 	chans.Progress.Sent <- 1
