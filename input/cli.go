@@ -1,7 +1,10 @@
 package input
 
 import (
+	"fmt"
+	"gorace/assets"
 	"gorace/log"
+	"os"
 	"strconv"
 )
 
@@ -111,8 +114,19 @@ func parse(args []string, log chan<- log.Entry) []Config {
 	return websites
 }
 
+func helpFlag(args []string) {
+	for _, f := range args {
+		if f == "-h" || f == "--help" {
+			fmt.Println(assets.Help)
+			os.Exit(0)
+		}
+	}
+}
+
 // Using args := os.Args[:2], in the loop, args[i] = flag, args[i+1] = parameter
 func CLI(args []string, global *GlobalFlags, logChan chan log.Entry) []Config {
+
+	helpFlag(args)
 
 	if len(args)%2 != 0 {
 		panic("[x] A flag is missing a parameter! Exiting...")

@@ -2,19 +2,12 @@ package display
 
 import (
 	"bufio"
-	"embed"
-	"errors"
 	"fmt"
+	"gorace/assets"
 	"math/rand"
 	"strings"
 	"unicode/utf8"
 )
-
-//go:embed arts/*
-var artsFS embed.FS
-
-//go:embed themes/*
-var themesFS embed.FS
 
 func findRowSize(art []string) int {
 	largest := 0
@@ -27,31 +20,39 @@ func findRowSize(art []string) int {
 	return largest
 }
 
-func readAsciiArt(arts *[][]string, fsys embed.FS, path string) error {
-	entries, err := fsys.ReadDir(path)
-	if err != nil {
-		return err
+func parseLogo(raw string) []string {
+	var art []string
+	scanner := bufio.NewScanner(strings.NewReader(raw))
+	for scanner.Scan() {
+		art = append(art, scanner.Text())
 	}
+	return art
+}
 
-	for _, e := range entries {
-		var art []string
+func parseThemes(raw string) [][]string {
+	var themes [][]string
+	var current []string
 
-		file, err := fsys.Open(path + "/" + e.Name())
-		if err != nil {
-			return errors.New("Unable to open ascii art -> " + path + "/" + e.Name())
-		}
-		defer file.Close()
+	scanner := bufio.NewScanner(strings.NewReader(raw))
+	for scanner.Scan() {
+		line := scanner.Text()
 
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			if err := scanner.Err(); err != nil {
-				return err
+		if line == "+" {
+			if len(current) == 3 {
+				themes = append(themes, current)
 			}
-			art = append(art, scanner.Text())
+			current = nil
+			continue
 		}
-		*arts = append(*arts, art)
+
+		current = append(current, line)
 	}
-	return nil
+
+	if len(current) == 3 {
+		themes = append(themes, current)
+	}
+
+	return themes
 }
 
 func printAsciiArt(art []string, theme []string) {
@@ -73,22 +74,15 @@ func printAsciiArt(art []string, theme []string) {
 }
 
 func handleAsciiArt() (int, error) {
-	var arts [][]string
-	var themes [][]string
 
-	if err := readAsciiArt(&arts, artsFS, "arts"); err != nil {
-		return 0, err
-	}
-	if err := readAsciiArt(&themes, themesFS, "themes"); err != nil {
-		return 0, err
-	}
+	art := parseLogo(assets.Logo)
+	themes := parseThemes(assets.Themes)
 
-	r1 := rand.Intn(len(arts))
 	r2 := rand.Intn(len(themes))
-	largestRow := findRowSize(arts[r1]) + findRowSize(themes[r2])
 
+	largestRow := findRowSize(art) + findRowSize(themes[r2])
 	fmt.Printf("\n%s\n\n", strings.Repeat("━", largestRow))
-	printAsciiArt(arts[r1], themes[r2])
+	printAsciiArt(art, themes[r2])
 
 	return largestRow, nil
 }
