@@ -40,7 +40,7 @@ func parseKeyValue(raw string) Pair {
 	value := strings.TrimSpace(parts[1])
 
 	if key == "" || value == "" {
-		panic("[x] Empty key or value! -> " + raw + "\nCheck examples with gorace --help.")
+		panic("[x] Empty key or value! -> " + raw + "\nCheck examples with gorace --help")
 	}
 
 	return Pair{Key: key, Value: value}

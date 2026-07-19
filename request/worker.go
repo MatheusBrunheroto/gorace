@@ -6,7 +6,6 @@ import (
 	"gorace/log"
 	"gorace/log/verbose"
 	"gorace/request/cache"
-	"io"
 	"net/http"
 	"time"
 )
@@ -40,7 +39,7 @@ func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Re
 
 // Always ends up doing N threads to the first Config, and N for the other
 // Receives a copy, so there is no need to thread lock
-func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
+func worker(start <-chan struct{}, w input.Config, match string, chans WorkerChans) {
 
 	request, hash, hit, err := getOrBuildRequest(w, chans.CacheChan)
 	if err != nil {
@@ -61,15 +60,8 @@ func worker(start <-chan struct{}, w input.Config, chans WorkerChans) {
 		verbose.WorkerError(hash, err.Error(), chans.LogChan)
 		return
 	}
-	_ = resp
-	respbody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		verbose.WorkerError(hash, err.Error(), chans.LogChan)
-		return
-	}
 
-	chans.LogChan <- log.Entry{Text: string(respbody), Verbosity: 3}
-	resp.Body.Close()
+	verbose.WorkerResponse(hash, resp, match, chans.LogChan)
 
 	chans.Progress.Succeeded <- 1
 

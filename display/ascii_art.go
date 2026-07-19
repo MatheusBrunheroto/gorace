@@ -2,43 +2,43 @@ package display
 
 import (
 	"bufio"
+	"embed"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
-	"os"
 	"strings"
 	"unicode/utf8"
 )
 
-func findRowSize(art []string) int {
+//go:embed arts/*
+var artsFS embed.FS
 
+//go:embed themes/*
+var themesFS embed.FS
+
+func findRowSize(art []string) int {
 	largest := 0
 	for _, a := range art {
-
 		count := utf8.RuneCountInString(a)
 		if count > largest {
 			largest = count
 		}
-
 	}
 	return largest
 }
 
-func readAsciiArt(arts *[][]string, path string) error {
-
-	entries, err := os.ReadDir(path)
+func readAsciiArt(arts *[][]string, fsys embed.FS, path string) error {
+	entries, err := fsys.ReadDir(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, e := range entries {
-
 		var art []string
 
-		file, err := os.Open(path + e.Name())
+		file, err := fsys.Open(path + "/" + e.Name())
 		if err != nil {
-			return errors.New("Unable to open ascii art -> " + path + e.Name())
+			return errors.New("Unable to open ascii art -> " + path + "/" + e.Name())
 		}
 		defer file.Close()
 
@@ -50,42 +50,36 @@ func readAsciiArt(arts *[][]string, path string) error {
 			art = append(art, scanner.Text())
 		}
 		*arts = append(*arts, art)
-
 	}
 	return nil
 }
-func printAsciiArt(art []string, theme []string) {
 
+func printAsciiArt(art []string, theme []string) {
 	start, end := 0, len(art)-1
 
 	for i, a := range art {
-
 		var line string
 		switch i {
 		case start:
 			line = theme[0] + a
-
 		case end:
 			line = theme[2] + a
-
 		default:
 			line = theme[1] + a
 		}
-
 		fmt.Println(line)
 	}
 	fmt.Println("")
 }
 
 func handleAsciiArt() (int, error) {
-
 	var arts [][]string
-	var themes [][]string // Three value arrays that dictates how every line from the logo will begin
+	var themes [][]string
 
-	if err := readAsciiArt(&arts, "./display/arts/"); err != nil {
+	if err := readAsciiArt(&arts, artsFS, "arts"); err != nil {
 		return 0, err
 	}
-	if err := readAsciiArt(&themes, "./display/themes/"); err != nil {
+	if err := readAsciiArt(&themes, themesFS, "themes"); err != nil {
 		return 0, err
 	}
 

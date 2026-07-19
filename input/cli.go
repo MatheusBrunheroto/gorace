@@ -16,6 +16,7 @@ func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entr
 
 	modes := []string{"sequential", "round-sequential", "cascade", "round-cascade", "flood"}
 	var modeExists bool = false
+	var matchExists bool = false
 
 	for i, flag := range args {
 
@@ -46,9 +47,18 @@ func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entr
 			}
 		}
 
+		// The code won't return anything about the responses unless a "match" flag is sent
+		if flag == "--match" {
+			global.Match = args[i+1]
+			matchExists = true
+		}
+
 	}
 	if !modeExists {
 		logChan <- log.Entry{Text: "[!] Mode wasn't identified, using \"flood\" as default...", Verbosity: 1}
+	}
+	if !matchExists {
+		logChan <- log.Entry{Text: "[!] Response match wasn't identified, increase verbosity to check for feedback", Verbosity: 1}
 	}
 
 }

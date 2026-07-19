@@ -68,7 +68,7 @@ func main() {
 		CacheChan: cacheChan,
 		LogChan:   logChan,
 	}
-	request.InitWorkers(websites, global.Mode, workerChans)
+	request.InitWorkers(websites, global, workerChans)
 
 	fmt.Printf("\n\n")
 	<-progress.Finished // Waits for display output of the current session to finish

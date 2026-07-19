@@ -1,10 +1,5 @@
 package log
 
-type Entry struct {
-	Text      string
-	Verbosity int
-}
-
 type Progress struct {
 	Started   chan struct{}
 	Total     chan int
