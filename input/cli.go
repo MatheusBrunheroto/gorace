@@ -101,6 +101,9 @@ func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entr
 	if !matchExists {
 		logChan <- log.Entry{Text: "[!] Response match wasn't identified, increase verbosity to check for feedback", Verbosity: 1}
 	}
+	if !global.NoColor {
+		logChan <- log.Entry{Text: "[!] It's recommended to run \"--no-color\" if you want to output the results to a file", Verbosity: 1}
+	}
 
 }
 

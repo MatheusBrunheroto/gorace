@@ -6,10 +6,32 @@ import (
 	"gorace/log"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
-//
+var whitespaceRegex = regexp.MustCompile(`\s+`)
+
+func highlightMatch(text string, match string) string {
+	if match == "" || !strings.Contains(text, match) {
+		return text
+	}
+	color := rgb{red: 255, green: 255, blue: 0}
+	colored := fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", color.red, color.green, color.blue, match)
+	return strings.ReplaceAll(text, match, colored)
+}
+
+func findMatchLineIndex(lines []string, match string) (string, bool) {
+	if match == "" {
+		return "", false
+	}
+	for _, line := range lines {
+		if strings.Contains(line, match) {
+			return line, true
+		}
+	}
+	return "", false
+}
 
 func Worker(w input.Config, hash uint64, hit bool, logChan chan<- log.Entry) {
 
@@ -44,8 +66,6 @@ func WorkerError(hash uint64, err string, logChan chan<- log.Entry) {
 
 }
 
-const contextRadius = 1
-
 func WorkerResponse(hash uint64, resp *http.Response, match string, logChan chan<- log.Entry) {
 
 	prefix := hashText(hash)
@@ -57,55 +77,28 @@ func WorkerResponse(hash uint64, resp *http.Response, match string, logChan chan
 		return
 	}
 	body := string(respbody)
-	lines := strings.Split(body, "\n")
+	body = strings.ReplaceAll(body, "\n", "")
+	body = whitespaceRegex.ReplaceAllString(body, " ")
 
-	idx, found := findMatchLineIndex(lines, match)
+	lines := strings.Split(body, "><")
+
+	line, found := findMatchLineIndex(lines, match)
 
 	if found {
-		// --- Verbosity 2: janela de 50 linhas ao redor do match ---
-		start := idx - contextRadius
-		if start < 0 {
-			start = 0
-		}
-		end := idx + contextRadius + 1
-		if end > len(lines) {
-			end = len(lines)
-		}
-		context := highlightMatch(strings.Join(lines[start:end], "\n"), match)
-		contextText := fmt.Sprintf("%s- %d -\n%s", prefix, resp.StatusCode, context)
-		logChan <- log.Entry{Text: contextText, Verbosity: 2}
 
-		// --- Verbosity 3: só a linha do match, só o match grifado ---
-		matchText := fmt.Sprintf("%s- %d - %s", prefix, resp.StatusCode, highlightMatch(lines[idx], match))
-		logChan <- log.Entry{Text: matchText, Verbosity: 3}
+		// --verbosity 1 -> Match warning
+		logChan <- log.Entry{Text: fmt.Sprintf("%s- %d | Match Found!", prefix, resp.StatusCode), Verbosity: 1}
+
+		// --verbosity 2 -> Surroudings of highlighted match
+		logChan <- log.Entry{Text: fmt.Sprintf("-> %s\n", highlightMatch(line, match)), Verbosity: 2}
+
+		// --verbosity 3 -> Entire response with match highlighted
+		logChan <- log.Entry{Text: highlightMatch(body, match), Verbosity: 3}
+
+		return
 	}
 
-	// --- Verbosity 4: body inteiro, SEMPRE, grifado só se houver match ---
-	fullBody := body
-	if found {
-		fullBody = highlightMatch(body, match)
-	}
-	fullText := fmt.Sprintf("%s- %d -\n%s", prefix, resp.StatusCode, fullBody)
-	logChan <- log.Entry{Text: fullText, Verbosity: 4}
-}
+	// --- Verbosity 4: Entire bodies, if has match it will be highlighted on verbosity 3
+	logChan <- log.Entry{Text: fmt.Sprintf("%s- %d -> %s", prefix, resp.StatusCode, body), Verbosity: 4}
 
-func findMatchLineIndex(lines []string, match string) (int, bool) {
-	if match == "" {
-		return -1, false
-	}
-	for i, line := range lines {
-		if strings.Contains(line, match) {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
-func highlightMatch(text string, match string) string {
-	if match == "" || !strings.Contains(text, match) {
-		return text
-	}
-	color := rgb{red: 255, green: 255, blue: 0}
-	colored := fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", color.red, color.green, color.blue, match)
-	return strings.ReplaceAll(text, match, colored)
 }

@@ -9,9 +9,6 @@ import (
 
 /*
 
-Verbosity n ⊇ Verbosity n-1
-Verbosity n-1 ⊇ Verbosity n-2
-
 --verbosity 0 -> Mandatory Logs (Progress Bar, Fatal Errors)
 --verbosity 1 -> All Above + Input Processing Feedback + String Matches
 --verbosity 2 -> Visual Mode Feedback + (Which requests are starting, Cache Hits, status codes, content lenght)
@@ -44,7 +41,7 @@ func shouldLog(userVerbosity int, messageVerbosity int) bool {
 	if userVerbosity == 3 && (messageVerbosity%2 != 0) { // Print all logs possible but 2 and 4
 		return true
 	}
-	if userVerbosity == 4 && messageVerbosity != 2 && messageVerbosity != 3 { // Print all logs possible, but cuts 3 so don't send duplicates
+	if userVerbosity == 4 && messageVerbosity != 2 { // Print all logs possible, but cuts 3 so don't send duplicates
 		return true
 	}
 	return false // Don't Log the specified message
