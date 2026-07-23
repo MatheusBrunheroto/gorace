@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"regexp"
 
 	"atomicgo.dev/cursor"
 )
@@ -18,11 +19,17 @@ Verbosity n-1 ⊇ Verbosity n-2
 --verbosity 4 -> Unconditional Full ResponseBody string, it's recommended to use --no-color and output via terminal for this
 
 */
-
+// VERBOSE 3 NAO TA COMPLETO IGUAL O 2
 type Entry struct {
 	Text       string
 	isResponse bool
 	Verbosity  int
+}
+
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func removeColor(text *string) {
+	*text = ansiRegex.ReplaceAllString(*text, "")
 }
 
 // Determines whether an specific message can be displayed or not, based on --verbose input
@@ -44,7 +51,7 @@ func shouldLog(userVerbosity int, messageVerbosity int) bool {
 
 }
 
-func Run(logChan chan Entry, userVerbosity *int) {
+func Run(logChan chan Entry, userVerbosity *int, noColor *bool) {
 
 	progress := cursor.NewArea()
 	var lastProgress string
@@ -56,13 +63,16 @@ func Run(logChan chan Entry, userVerbosity *int) {
 		// Mandatory Logs
 		if log.Verbosity == 0 {
 			lastProgress = log.Text
+			removeColor(&log.Text)
 			progress.Update(lastProgress)
 			continue
 		}
 
 		if shouldLog(*userVerbosity, log.Verbosity) {
-
 			progress.Clear()
+			if *noColor {
+				removeColor(&log.Text)
+			}
 			fmt.Println(log.Text)
 			progress.Update(lastProgress)
 		}

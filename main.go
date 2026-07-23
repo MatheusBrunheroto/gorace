@@ -36,7 +36,7 @@ import (
 
 func main() {
 
-	global := input.GlobalFlags{Mode: "flood", Match: "", Verbosity: 1}
+	global := input.GlobalFlags{Mode: "flood", Match: "", Verbosity: 1, NoColor: false}
 	progress := log.Progress{
 		Started:   make(chan struct{}),
 		Total:     make(chan int),
@@ -52,7 +52,7 @@ func main() {
 
 	// 2. Logger (default verbosity = 1)
 	logChan := make(chan log.Entry)
-	go log.Run(logChan, &global.Verbosity) // [x] Panic() are not read inside log, as it could run the error before actually stopping it
+	go log.Run(logChan, &global.Verbosity, &global.NoColor) // [x] Panic() are not read inside log, as it could run the error before actually stopping it
 
 	// 3. Display
 	display.Run(progress.Reader(), logChan)

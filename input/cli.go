@@ -12,6 +12,40 @@ type GlobalFlags struct {
 	Mode      string
 	Match     string
 	Verbosity int
+	NoColor   bool
+}
+
+func removeGlobalFlags(args []string) []string {
+
+	var output []string
+	targets := map[string]bool{
+		"-m":        true,
+		"--mode":    true,
+		"-v":        true,
+		"--verbose": true,
+		"--match":   true,
+	}
+
+	for i := 0; i < len(args); i++ {
+
+		arg := args[i]
+
+		if targets[args[i]] {
+			if i+1 < len(args) {
+				i++
+				continue
+			}
+		}
+
+		if args[i] == "--no-color" {
+			continue
+		}
+
+		output = append(output, arg)
+
+	}
+
+	return output
 }
 
 // Mode and Verbosity
@@ -54,6 +88,10 @@ func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entr
 		if flag == "--match" {
 			global.Match = args[i+1]
 			matchExists = true
+		}
+
+		if flag == "--no-color" {
+			global.NoColor = true
 		}
 
 	}
@@ -127,13 +165,14 @@ func helpFlag(args []string) {
 func CLI(args []string, global *GlobalFlags, logChan chan log.Entry) []Config {
 
 	helpFlag(args)
+	readGlobalFlags(args, global, logChan)
+	args = removeGlobalFlags(args)
 
 	if len(args)%2 != 0 {
 		panic("[x] A flag is missing a parameter! Exiting...")
 	}
 
 	// Flags that aren't related to the website request struct (Mode and Verbosity)
-	readGlobalFlags(args, global, logChan)
 
 	// bar := strings.Repeat("⸺", 30)
 	// logChan <- log.Entry{Text: bar + "\n", Verbosity: 0}

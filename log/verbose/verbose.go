@@ -31,7 +31,7 @@ func WorkerError(hash uint64, err string, logChan chan<- log.Entry) {
 	preview := hashText(hash)
 
 	errorColor := rgb{
-		red:   100 + int(hash%60), // 60-199
+		red:   100 + int(hash%60),
 		green: 100 + int(hash%60),
 		blue:  100 + int(hash%60),
 	}
