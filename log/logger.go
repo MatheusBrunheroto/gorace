@@ -41,7 +41,7 @@ func shouldLog(userVerbosity int, messageVerbosity int) bool {
 	if userVerbosity == 3 && (messageVerbosity%2 != 0) { // Print all logs possible but 2 and 4
 		return true
 	}
-	if userVerbosity == 4 && messageVerbosity != 2 { // Print all logs possible, but cuts 3 so don't send duplicates
+	if userVerbosity == 4 && messageVerbosity != 2 { // Print all logs possible, but cuts 2 so don't send duplicates
 		return true
 	}
 	return false // Don't Log the specified message

@@ -5,18 +5,6 @@ import (
 	"strconv"
 )
 
-/*
-	gorace -u 'url' -H 'Content-Type: application/json'
-
-	Arguments -> "-u", "url", "-H", "Content-Type: application/json"
-	Flags -> "-u", "-H"
-	Parameter ("-u") -> "url"
-
-	Headers -> pair
-	(Header) KeyName -> "Content-Type"
-	(Header) Pair -> "application/json"
-*/
-
 type Pair struct {
 	Key   string
 	Value string
@@ -93,7 +81,7 @@ func writeConfig(current *Config, flag string, raw string, logChan chan<- log.En
 
 }
 
-func getConfigs(flags map[string]string, args []string, log chan<- log.Entry) []Config {
+func getConfigs(flags map[string]string, args []string, logChan chan<- log.Entry) []Config {
 
 	var configs []Config
 	current := defaultConfig()
@@ -101,9 +89,11 @@ func getConfigs(flags map[string]string, args []string, log chan<- log.Entry) []
 	var alias, value string
 	for i := 0; i < len(args); i++ {
 
-		// i % 2 is verified beforehand
 		alias = args[i]
 		i++
+		if i >= len(args) {
+			continue
+		}
 		value = args[i]
 
 		_, exist := flags[alias]
@@ -117,7 +107,7 @@ func getConfigs(flags map[string]string, args []string, log chan<- log.Entry) []
 			current = defaultConfig()                 // Set Current Config to Default
 		}
 
-		writeConfig(&current, alias, value, log)
+		writeConfig(&current, alias, value, logChan)
 
 	}
 	configs = append(configs, current) // To save the Last URL
