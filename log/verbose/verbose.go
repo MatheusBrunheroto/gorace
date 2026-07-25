@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-var whitespaceRegex = regexp.MustCompile(`\s+`)
+var whitespaceRegex = regexp.MustCompile(`>\s*<`)
 
 func highlightMatch(text string, match string) string {
 	if match == "" || !strings.Contains(text, match) {
@@ -45,6 +45,8 @@ func Worker(w input.Config, hash uint64, hit bool, logChan chan<- log.Entry) {
 	}
 
 	logChan <- log.Entry{Text: text, Verbosity: 2}
+	logChan <- log.Entry{Text: text, Verbosity: 3}
+	logChan <- log.Entry{Text: text, Verbosity: 4}
 
 }
 
@@ -78,7 +80,7 @@ func WorkerResponse(hash uint64, resp *http.Response, match string, logChan chan
 	}
 	body := string(respbody)
 	body = strings.ReplaceAll(body, "\n", "")
-	body = whitespaceRegex.ReplaceAllString(body, " ")
+	body = whitespaceRegex.ReplaceAllString(body, "><")
 
 	lines := strings.Split(body, "><")
 
