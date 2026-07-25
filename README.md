@@ -43,8 +43,9 @@ gorace -u 'https://x.com' -d 'FUZZ=payload' -w 'FUZZ=./wordlist.txt' --threads 1
 
 Every `-u` starts a new target. Any flags set before the next `-u` (headers, cookies, data, wordlist, threads, delay) apply only to that target — so a single command can test multiple websites at once, each with its own configuration.
 
+## Modes
 <!-- Usage gifs -->
-### Flood mode (verbose 1 and 2)
+### • Flood mode (verbose 1 and 2)
 <!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
 ```bash
 gorace -u 'https://example.com/' --verbose 1 --threads 6 --mode flood --match permission
@@ -52,32 +53,36 @@ gorace -u 'https://example.com/' --verbose 1 --threads 6 --mode flood --match pe
 ```bash
 gorace -u 'https://example.com/' --verbose 2 --threads 6 --mode flood --match permission
 ```
+<br>
 
-### Sequential mode (verbose 3)
+### • Sequential mode (verbose 3)
+<!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
 ```bash
 gorace -u 'foo.bar' --threads 10 --delay 1000 \
        -u 'baz.qux' --threads 10 --delay 1000 \
        --verbose 3 --mode sequential
 ```
-<!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
+<br>
 
-### Round-Sequential mode (verbose 3)
+### • Round-Sequential mode (verbose 3)
+<!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
 ```bash
 gorace -u 'foo.bar' --threads 10 --delay 1000 \
        -u 'baz.qux' --threads 10 --delay 1000 \
        --verbose 3 --mode round-sequential
 ```
-<!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
+<br>
 
-### Cascade mode (verbose 3)
+### • Cascade mode (verbose 3)
 <!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
 ```bash
 gorace -u 'foo.bar' --threads 10 --delay 1000 \
        -u 'baz.qux' --threads 10 --delay 1000 \
        --verbose 3 --mode cascade
 ```
+<br>
 
-### Round-Cascade mode (verbose 3)
+### • Round-Cascade mode (verbose 3)
 <!--![flood mode](./docs/gifs/flood-verbose3.gif) -->
 ```bash
 gorace -u 'foo.bar' --threads 20 --delay 1000 \
