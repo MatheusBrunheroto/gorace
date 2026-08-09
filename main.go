@@ -78,3 +78,4 @@ func main() {
 // Fazer SINGLEPACKET, apenas pra modos FLOOD
 // Starts output
 // FAZER URL LER WORDLIST, SUPORTAR WORDLISTx, le a string inteira pra ver se contem
+// ADICIONAR COR CUSTOMIZADA
