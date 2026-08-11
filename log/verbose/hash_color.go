@@ -49,15 +49,16 @@ func hslToRGB(h, s, l float64) rgb {
 
 }
 
-func hashToVividColor(hash uint64) rgb {
-	hue := math.Mod(340+float64(hash%40), 360)
-	lightness := 0.45 + float64((hash>>8)%25)/100
-	return hslToRGB(hue, 0.85, lightness)
+func hashToGoldenColor(hash uint64) rgb {
+	hue := 36 + float64(hash%18)
+	saturation := 0.40 + float64((hash>>8)%30)/100
+	lightness := 0.55 + float64((hash>>16)%20)/100
+	return hslToRGB(hue, saturation, lightness)
 }
 
 func hashText(hash uint64) string {
 
-	color := hashToVividColor(hash)
+	color := hashToGoldenColor(hash)
 
 	return fmt.Sprintf(
 		"\x1b[38;2;%d;%d;%dm[%s...] \x1b[0m",
