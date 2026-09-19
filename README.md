@@ -1,4 +1,4 @@
-<img width="1670" height="618" alt="image" src="https://github.com/user-attachments/assets/b6dfd767-8270-46e6-8d23-11dff374d08d" />
+<img width="2043" height="770" alt="ChatGPT Image Sep 19, 2026, 02_49_39 AM" src="https://github.com/user-attachments/assets/2850ba0f-53bd-4d5e-95e4-89fe6f271a1d" />
 <hr>
 
 # gorace
