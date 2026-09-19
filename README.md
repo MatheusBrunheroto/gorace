@@ -1,7 +1,7 @@
-<img width="2043" height="770" alt="ChatGPT Image Sep 19, 2026, 02_49_39 AM" src="https://github.com/user-attachments/assets/2850ba0f-53bd-4d5e-95e4-89fe6f271a1d" />
-<hr>
+<p align="center">
+<img width="300" alt="ChatGPT Image Sep 19, 2026, 02_49_39 AM" src="gorace.png" />
+</p>
 
-# gorace
 A race condition testing tool written in Go. gorace queues HTTP requests and releases them through multiple timing modes (flood, cascade, round-cascade and more), instead of firing them one at a time like typical fuzzers.
 
 <!-- Demo video -->
