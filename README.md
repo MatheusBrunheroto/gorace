@@ -10,11 +10,6 @@ https://github.com/user-attachments/assets/YOUR-VIDEO-ID-HERE
 
 ## Installation
 
-### Go Installer
-```bash
-go install github.com/MatheusBrunheroto/gorace@latest
-```
-
 ### AUR package
 ```bash
 yay -S NOT WORKING YET
