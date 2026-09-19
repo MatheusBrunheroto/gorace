@@ -1,3 +1,6 @@
+<img width="1670" height="618" alt="image" src="https://github.com/user-attachments/assets/b6dfd767-8270-46e6-8d23-11dff374d08d" />
+<hr>
+
 # gorace
 A race condition testing tool written in Go. gorace queues HTTP requests and releases them through multiple timing modes (flood, cascade, round-cascade and more), instead of firing them one at a time like typical fuzzers.
 
