@@ -1,0 +1,14 @@
+pkgbase = gorace
+	pkgdesc = Concurrent HTTP requests for testing web race conditions
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/MatheusBrunheroto/gorace
+	arch = x86_64
+	license = GPL-3.0-or-later
+	makedepends = go>=1.25
+	depends = glibc
+	depends = ca-certificates
+	source = https://github.com/MatheusBrunheroto/gorace/releases/download/v1.0.0/gorace-1.0.0.tar.gz
+	sha256sums = 4f1ba4f7c6074eb8d9a88823c3ba7db004f6633e96045e26061d3883e89e6619
+
+pkgname = gorace

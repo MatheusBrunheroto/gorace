@@ -21,7 +21,8 @@ func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entr
 	var modeExists bool = false
 	var matchExists bool = false
 
-	for i, flag := range args {
+	for i := 0; i < len(args); i++ {
+		flag := args[i]
 
 		switch flag {
 		case "--mode":
@@ -51,14 +52,17 @@ func readGlobalFlags(args []string, global *GlobalFlags, logChan chan<- log.Entr
 			matchExists = true
 		case "--no-color":
 			global.NoColor = true
+			continue
 
 		case "--help":
 			fmt.Println(assets.Help)
 			os.Exit(0)
 		}
+		i++ // Skip the flag's value
 
 		// The code won't return anything about the responses unless a "match" flag is sent
 	}
+	logChan <- log.Entry{Configure: true, Verbosity: global.Verbosity, NoColor: global.NoColor}
 	if !modeExists {
 		logChan <- log.Entry{Text: "[!] Mode wasn't identified, using \"flood\" as default...", Verbosity: 1}
 	}
@@ -131,6 +135,9 @@ func normalizeInputFlags(args *[]string) {
 		if normalized, ok := table[(*args)[i]]; ok {
 			(*args)[i] = normalized
 		}
+		if (*args)[i] != "--no-color" && (*args)[i] != "--help" {
+			i++ // Values must not be normalized as flags
+		}
 	}
 
 }
@@ -154,5 +161,6 @@ func initConfigFlags() map[string]string {
 		"--wordlist": "", // -w
 		"--threads":  "", // -t
 		"--delay":    "", // -D
+		"--timeout":  "",
 	}
 }

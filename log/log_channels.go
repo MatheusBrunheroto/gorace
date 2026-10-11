@@ -6,7 +6,7 @@ type Progress struct {
 	Sent      chan int
 	Succeeded chan int
 	Failed    chan int
-	Finished  chan struct{}
+	Finished  chan int
 }
 type ProgressReader struct {
 	Started   chan struct{}
@@ -14,7 +14,7 @@ type ProgressReader struct {
 	Sent      <-chan int
 	Succeeded <-chan int
 	Failed    <-chan int
-	Finished  chan struct{}
+	Finished  chan int
 }
 type ProgressWriter struct {
 	Started   chan struct{}
@@ -22,7 +22,7 @@ type ProgressWriter struct {
 	Sent      chan<- int
 	Succeeded chan<- int
 	Failed    chan<- int
-	Finished  chan struct{}
+	Finished  chan int
 }
 
 func (p Progress) Reader() ProgressReader {

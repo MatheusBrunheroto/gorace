@@ -14,6 +14,11 @@ type expansion struct {
 	Pairs       []Pair
 }
 
+type wordlist struct {
+	Placeholder string
+	Words       []string
+}
+
 func readWordlists(path string) []string {
 
 	file, err := os.Open(path)
@@ -29,40 +34,35 @@ func readWordlists(path string) []string {
 		words = append(words, scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		panic(err)
+		panic("[x] " + err.Error())
 	}
 
 	return words
 }
 
-func removeWordlistPlaceholder(key string, field *[]Pair, isKey bool) {
-	var filtered []Pair
-	removed := false
-	for _, p := range *field {
-		match := (isKey && p.Key == key) || (!isKey && p.Value == key)
-		if match && !removed {
-			removed = true
-			continue
-		}
-		filtered = append(filtered, p)
-	}
-	*field = filtered
-}
-func parseWordlist(words []string, pair Pair, wrap [2]string, isKey bool) []Pair {
+func parseWordlist(pair Pair, lists []wordlist) []Pair {
 
 	var expanded []Pair
 
-	for _, word := range words {
+	var expand func(int, []string)
+	expand = func(index int, replacements []string) {
 
-		w := wrap[0] + word + wrap[1]
+		if index == len(lists) {
+			// Replace in the original pair so inserted words are not expanded again.
+			replacer := strings.NewReplacer(replacements...)
+			expanded = append(expanded, Pair{
+				Key:   replacer.Replace(pair.Key),
+				Value: replacer.Replace(pair.Value),
+			})
+			return
+		}
 
-		if isKey {
-			expanded = append(expanded, Pair{Key: w, Value: pair.Value})
-		} else {
-			expanded = append(expanded, Pair{Key: pair.Key, Value: w})
+		for _, word := range lists[index].Words {
+			expand(index+1, append(replacements, lists[index].Placeholder, word))
 		}
 
 	}
+	expand(0, nil)
 
 	return expanded
 }
@@ -134,6 +134,7 @@ func insertsWordlist(original Config, expanded []expansion) []Config {
 					Data:    append(newFields.Data, d...),
 					Threads: original.Threads,
 					Delay:   original.Delay,
+					Timeout: original.Timeout,
 				}
 				newConfigs = append(newConfigs, new)
 			}
@@ -142,20 +143,12 @@ func insertsWordlist(original Config, expanded []expansion) []Config {
 	return newConfigs
 }
 
-func filterPlaceholder(placeholder string, wordlistPlaceholder string) [2]string {
-	before, after, _ := strings.Cut(placeholder, wordlistPlaceholder)
-	return [2]string{before, after}
-}
-func handleExpansion(pair Pair, fieldName string, words []string, wordlistKey string, isKey bool) expansion {
+func handleExpansion(pair Pair, fieldName string, lists []wordlist) expansion {
 
-	target := pair.Key
-	if !isKey {
-		target = pair.Value
-	}
 	return expansion{
 		Field:       fieldName,
 		Placeholder: randomString(8),
-		Pairs:       parseWordlist(words, pair, filterPlaceholder(target, wordlistKey), isKey),
+		Pairs:       parseWordlist(pair, lists),
 	}
 
 }
@@ -168,35 +161,30 @@ func handleWordlist(config Config) []Config {
 	}
 
 	var expansions []expansion
+	var lists []wordlist
 
-	for _, wordlist := range config.Wordlists {
+	for _, list := range config.Wordlists {
+		lists = append(lists, wordlist{Placeholder: list.Key, Words: readWordlists(list.Value)})
+	}
 
-		words := readWordlists(wordlist.Value) // Path
-
-		// Headers, Cookies and Data
-		for name, field := range fields {
-			// Field pairs -> headers.key headers.value...
-			for _, pair := range *field {
-
-				if strings.Contains(pair.Key, wordlist.Key) {
-
-					removeWordlistPlaceholder(pair.Key, field, true)
-					expansions = append(expansions, handleExpansion(pair, name, words, wordlist.Key, true))
-					continue
-
+	// Headers, Cookies and Data
+	for name, field := range fields {
+		var filtered []Pair
+		for _, pair := range *field {
+			var matching []wordlist
+			for _, list := range lists {
+				if strings.Contains(pair.Key, list.Placeholder) || strings.Contains(pair.Value, list.Placeholder) {
+					matching = append(matching, list)
 				}
-				if strings.Contains(pair.Value, wordlist.Key) {
-
-					removeWordlistPlaceholder(pair.Value, field, false)
-					expansions = append(expansions, handleExpansion(pair, name, words, wordlist.Key, false))
-					continue
-
-				}
-
 			}
 
+			if len(matching) > 0 {
+				expansions = append(expansions, handleExpansion(pair, name, matching))
+				continue
+			}
+			filtered = append(filtered, pair)
 		}
-
+		*field = filtered
 	}
 
 	return insertsWordlist(config, expansions)

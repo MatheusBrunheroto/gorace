@@ -34,6 +34,9 @@ func CLI(args []string, global *GlobalFlags, logChan chan log.Entry) []Config {
 	readGlobalFlags(args, global, logChan) // Flags that aren't related to the website request struct
 
 	configs := parse(args, logChan)
+	if len(configs) == 0 {
+		panic("[x] No requests to send after wordlist expansion")
+	}
 
 	logChan <- log.Entry{Text: "[+] Input read successfully!\n", Verbosity: 1}
 

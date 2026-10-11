@@ -8,6 +8,7 @@ import (
 	"gorace/request"
 	"gorace/request/cache"
 	"os"
+	"strings"
 )
 
 // BASIC TEST: go run main.go -u '1.com' --threads 10 -u '2.com' --threads 20
@@ -36,6 +37,17 @@ import (
 
 func main() {
 
+	defer func() {
+		if err := recover(); err != nil {
+			message, ok := err.(string)
+			if !ok || !strings.HasPrefix(message, "[x]") {
+				panic(err)
+			}
+			fmt.Fprintln(os.Stderr, message)
+			os.Exit(2)
+		}
+	}()
+
 	global := input.GlobalFlags{Mode: "flood", Match: "", Verbosity: 1, NoColor: false}
 	progress := log.Progress{
 		Started:   make(chan struct{}),
@@ -43,7 +55,7 @@ func main() {
 		Sent:      make(chan int),
 		Succeeded: make(chan int),
 		Failed:    make(chan int),
-		Finished:  make(chan struct{}),
+		Finished:  make(chan int),
 	}
 
 	// 1. Cache (will later on avoid buildRequest generating the same request multiple times)
@@ -52,7 +64,7 @@ func main() {
 
 	// 2. Logger (default verbosity = 1)
 	logChan := make(chan log.Entry)
-	go log.Run(logChan, &global.Verbosity, &global.NoColor) // [x] Panic() are not read inside log, as it could run the error before actually stopping it
+	go log.Run(logChan, global.Verbosity, global.NoColor) // [x] Panic() are not read inside log, as it could run the error before actually stopping it
 
 	// 3. Display
 	display.Run(progress.Reader(), logChan)
@@ -70,8 +82,12 @@ func main() {
 	}
 	request.InitWorkers(websites, global, workerChans)
 
+	failed := <-progress.Finished // Waits for display output of the current session to finish
+	logChan <- log.Entry{Verbosity: -1}
 	fmt.Printf("\n\n")
-	<-progress.Finished // Waits for display output of the current session to finish
+	if failed > 0 {
+		os.Exit(1)
+	}
 
 }
 

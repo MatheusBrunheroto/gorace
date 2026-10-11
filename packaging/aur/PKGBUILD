@@ -1,0 +1,37 @@
+pkgname=gorace
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Concurrent HTTP requests for testing web race conditions'
+arch=('x86_64')
+url='https://github.com/MatheusBrunheroto/gorace'
+license=('GPL-3.0-or-later')
+depends=('glibc' 'ca-certificates')
+makedepends=('go>=1.25')
+source=("$url/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
+sha256sums=('4f1ba4f7c6074eb8d9a88823c3ba7db004f6633e96045e26061d3883e89e6619')
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  export CGO_ENABLED=1
+  export CGO_CPPFLAGS="$CPPFLAGS"
+  export CGO_CFLAGS="$CFLAGS"
+  export CGO_CXXFLAGS="$CXXFLAGS"
+  export CGO_LDFLAGS="$LDFLAGS"
+  export GOTOOLCHAIN=local
+  export GOPATH="$srcdir/go"
+  export GOCACHE="$srcdir/go-build"
+  go build -buildmode=pie -mod=readonly -modcacherw \
+    -ldflags '-compressdwarf=false -linkmode=external' -o gorace .
+}
+
+check() {
+  cd "$srcdir/$pkgname-$pkgver"
+  ./gorace --help > /dev/null
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+  install -Dm755 gorace "$pkgdir/usr/bin/gorace"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md assets/help.txt -t "$pkgdir/usr/share/doc/$pkgname"
+}

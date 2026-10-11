@@ -9,9 +9,9 @@ import (
 /*
 The two following functions limit which inputs are acceptable. Examples of correct inputs:
 
-	-H --headers  -> 'h1_name:h1_value,h2_name:h2_value'
-	-b --cookies  -> 'c1_name = c1_value, c2_name= c2_value'
-	-d --data 	  -> 'd1_name =d1_value'
+	-H --headers  -> 'h1_name:h1_value' (repeat -H for multiple headers)
+	-b --cookies  -> 'c1_name=c1_value;c2_name=c2_value'
+	-d --data 	  -> 'd1_name=d1_value&d2_name=d2_value' (URL-encoded)
 	-w --wordlist -> 'WORDLIST1=PATH1,WORDLIST2=PATH2'
 
 Anything that goes against the structure 'KEY=VALUE' for -b, -d and -w;
@@ -27,9 +27,9 @@ func findDelimiter(s string, values []string) (string, bool) {
 	return "", false
 }
 
-func parseKeyValue(raw string) Pair {
+func parseKeyValue(raw string, delimiter string) Pair {
 
-	delimiter, found := findDelimiter(raw, []string{":", "="})
+	_, found := findDelimiter(raw, []string{delimiter})
 	if !found {
 		panic("[x] No valid delimiter found in: " + raw)
 	}
@@ -46,20 +46,40 @@ func parseKeyValue(raw string) Pair {
 	return Pair{Key: key, Value: value}
 }
 
-func parsePairs(raw string) []Pair {
+func parsePairs(raw string, flag string) []Pair {
 
 	var parsedPairs []Pair
+	delimiter, separator := "=", ""
+	switch flag {
+	case "--headers":
+		delimiter = ":"
+	case "--cookies":
+		separator = ";"
+	case "--data":
+		separator = "&"
+	case "--wordlist":
+		separator = ","
+	}
 
-	// If contais ',' or '&' (has multiple keys), splits by ':' or '='
-	if delimeter, found := findDelimiter(raw, []string{",", "&"}); found {
+	if separator != "" {
 
-		// pairs := strings.SplitSeq(raw, delimeter)
-		for pair := range strings.SplitSeq(raw, delimeter) {
-			parsedPairs = append(parsedPairs, parseKeyValue(pair))
+		for pair := range strings.SplitSeq(raw, separator) {
+			parsedPairs = append(parsedPairs, parseKeyValue(pair, delimiter))
 		}
 
 	} else {
-		parsedPairs = append(parsedPairs, parseKeyValue(raw))
+		parsedPairs = append(parsedPairs, parseKeyValue(raw, delimiter))
+	}
+
+	if flag == "--data" {
+		for i, pair := range parsedPairs {
+			key, keyErr := url.QueryUnescape(pair.Key)
+			value, valueErr := url.QueryUnescape(pair.Value)
+			if keyErr != nil || valueErr != nil {
+				panic("[x] Invalid URL-encoded data -> " + raw)
+			}
+			parsedPairs[i] = Pair{Key: key, Value: value}
+		}
 	}
 
 	return parsedPairs

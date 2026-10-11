@@ -4,76 +4,313 @@ NAME
     gorace — tool for testing web race conditions through concurrent HTTP requests
 
 SYNOPSIS
-    gorace [OPTIONS]
+    gorace [GLOBAL OPTIONS] -u URL [TARGET OPTIONS] [-u URL [TARGET OPTIONS] ...]
+    gorace {-h | --help}
 
 DESCRIPTION
-    gorace is a command-line tool designed to test for race conditions in web applications.
-    It sends multiple concurrent HTTP requests to one or more target endpoints in order to
-    detect timing vulnerabilities that occur when requests are processed simultaneously.
+    gorace sends HTTP requests using a selected concurrency mode and displays progress,
+    errors and response matches. A match is a substring found in a response body; it does
+    not by itself establish that a race condition exists.
 
-    Multiple targets can be defined in a single command by repeating the -u flag. Every flag
-    set before a -u applies to that specific target, allowing different URLs, headers,
-    cookies, request bodies, thread counts and delays to be tested together in the same run.
+    Each -u starts a target. Target options after that URL and before the next -u belong
+    to that target. Target options before the first -u also belong to the first target.
+    Each subsequent target starts with fresh defaults; options are not inherited.
 
-    Requests are released according to the selected mode (flood, sequential, cascade, or
-    round-cascade), controlling the timing strategy used to trigger race conditions.
+    --mode, --verbose, --match and --no-color are global, wherever they appear. Other
+    request options are per target. Wordlists expand a target into multiple configurations
+    before scheduling; every resulting configuration keeps its target's thread count,
+    method, delay and timeout. See MODES and WORDLIST EXPANSION.
+
+ARGUMENT SYNTAX
+    Pass each option and its value as separate shell arguments. Only -h/--help and
+    --no-color take no value. Quote values containing spaces or shell characters.
+    Option names and mode names are case-sensitive. Only the aliases listed below exist.
+
+    --option=value, attached short-option values, combined short options, positional
+    URLs and the -- end-of-options marker are not supported. Unknown tokens are not
+    reliably rejected: the parser skips an unrecognized token and the following argument,
+    which can hide or misalign later options. A trailing unknown token is ignored.
+
+    A recognized value-taking option missing its value is rejected. A value equal to a
+    recognized long option is also rejected, even when quoted. Short aliases in value
+    positions are kept literally; for example, --match '-v' is accepted.
+
+    Repeating a scalar target option replaces its previous value, except -u, which starts
+    another target. Repeating -H, -b, -d or -w appends pairs. Global repetition follows
+    the rules under each option below.
 
 OPTIONS
     -u, --url URL
-        Target URL. Can be used multiple times to define several targets in the same run.
+        Required except when displaying help. Repeat to define another target.
+        If URL does not start with lowercase http:// or https://, https:// is prepended,
+        even for an uppercase or unrelated scheme. Supply HTTP/HTTPS URLs explicitly.
+        An empty URL, one beginning with -, a URL parse error or an empty host after
+        normalization is rejected. This is not a complete URL validity check; other
+        address, connection and TLS errors can occur at request time.
+        URL placeholders are not expanded. Use http:// for a plain HTTP server.
 
     -X, --method METHOD
-        HTTP method to use (GET, POST, PUT, PATCH, DELETE).
+        Default: GET. Recognized methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS,
+        TRACE and CONNECT. Input is uppercased and ordinary spaces are removed.
+        An empty or unrecognized method falls back to GET; custom methods are not sent.
+        Supplying --data does not automatically select POST.
 
     -d, --data DATA
-        Request body data. Supports FUZZ placeholders when used with -w.
+        Form fields written as key=value pairs separated by &. Can be repeated.
+        Without this option, no request body is supplied.
+        Each pair is split at its first =. Colons, commas, semicolons and later = are literal.
+        Keys and values are URL-decoded, then form-encoded when the request is built.
+        A bare + means a space; use %2B for +, %26 for &, and %25 for %.
+        Invalid percent escapes are rejected. Repeated keys keep the last value, subject
+        to the ordering of expanded pairs described under WORDLIST EXPANSION.
+        Form fields are sent in key order. Wordlists can replace keys and values.
+        The body is sent with the selected method, including GET if no -X was supplied.
+        This option does not read @files or stdin, or accept raw JSON or multipart bodies.
+        Setting a custom Content-Type does not change the form encoding.
 
-    -H, --headers HEADERS
-        Custom HTTP headers.
+    -H, --headers HEADER
+        One name:value header per flag. Repeat -H for multiple headers.
+        Split at the first colon; later colons, commas, = and & are literal values.
+        Repeated header names replace earlier values, ignoring case; see WORDLIST
+        EXPANSION for the ordering of expanded pairs. Host sets the HTTP Host value;
+        the URL still determines the connection destination and HTTPS server name.
+        A fixed browser-style User-Agent (Chrome 120 on Windows 10) is added when missing
+        or empty. With a body and a missing/empty Content-Type, application/x-www-form-urlencoded
+        is added. Content-Length and Transfer-Encoding are managed by the HTTP library;
+        setting Content-Length with -H does not override the transmitted body length.
+        Invalid header names or values can fail at send time. Keys and values may
+        contain wordlist placeholders. Outer whitespace in header values is removed
+        during HTTP serialization, including whitespace inserted by a wordlist.
 
     -b, --cookies COOKIES
-        Cookies to include in the request.
+        name=value pairs separated by semicolons. Can be repeated.
+        Split at the first =; later =, commas, colons and & are part of the value.
+        Cookies are appended to the Cookie header, including any supplied with -H.
+        Repeated cookie names are kept. This is a Cookie request value, not Set-Cookie:
+        attributes such as Path are treated as additional cookie names.
+        Cookie names and values may contain wordlist placeholders. Invalid names can
+        cause a cookie to be omitted. Values containing spaces or commas are quoted;
+        invalid value bytes can be removed with a warning on stderr.
+        Response cookies are not saved in a cookie jar for subsequent requests.
 
     -w, --wordlist WORDLIST
-        Wordlist used to replace FUZZ placeholders and generate multiple requests.
+        ALIAS=PATH pairs separated by commas. Can be repeated; FUZZ is just an example
+        alias, not a reserved name. Split at the first =; later =, colons and & in PATH
+        are literal. Commas in paths cannot be escaped through this syntax.
+        Relative paths use the current working directory. Read one replacement per line
+        from each file. A bare path without ALIAS= is rejected. See WORDLIST EXPANSION.
 
     -t, --threads NUMBER
-        Number of concurrent workers for the target.
+        Default: 1. Use a positive decimal integer. In flood, sequential and cascade,
+        this is the number of workers for each expanded configuration, not a global
+        concurrency limit or a guaranteed number of TCP connections. In round modes,
+        the largest count determines rounds for all configurations. See MODES.
+        Zero, negative, malformed and out-of-range values are rejected. A leading + and
+        leading zeros are accepted; fractions, hex notation and surrounding spaces are not.
+        The value and scheduled total must fit a platform int.
 
     -D, --delay MILLISECONDS
-        Delay applied between requests, depending on the selected mode.
+        Default: 0. Nonnegative decimal integer milliseconds. Every worker waits this long
+        after release and before sending. This is not a fixed interval between requests:
+        workers in the same group wait independently and can send together.
+        Zero does not wait. Negative, malformed and out-of-range values are rejected.
+        A leading + and leading zeros are accepted; fractions, hex notation and surrounding
+        spaces are not. The value must fit a platform int and, when converted to nanoseconds,
+        a signed 64-bit duration. The delay is outside --timeout. Sequential modes wait for
+        the group's delays and requests.
+
+    --timeout DURATION
+        Default: 30s per worker. Covers the HTTP exchange, redirects and reading the
+        response body; excludes wordlist loading, request preparation, scheduling and --delay.
+        Accepts Go duration syntax: 500ms, 1.5s, 2m, 1m30s; units ns, us, µs, μs,
+        ms, s, m and h. A leading + is accepted. Nonzero numbers need a unit; d is not a unit.
+        Invalid syntax, surrounding spaces, overflow or a parsed negative duration is
+        rejected. Fractions are truncated to nanoseconds: 0.1ns and -0.1ns both become 0.
+        Use 0 to disable the overall client timeout. Internal transport timeouts, such as
+        connection and TLS handshake limits, still apply.
 
     -m, --mode MODE
-        Timing mode used to release requests: flood, sequential, cascade, round-cascade.
+        Global. Default: flood. Accepts flood, sequential, cascade, round-sequential
+        and round-cascade. The last recognized value wins. Unrecognized values are
+        ignored, retaining the previous valid mode or the default. See MODES.
 
     -v, --verbose LEVEL
-        Verbosity level (0-3). Higher levels show per-request details, including cache hits
-        and errors.
+        Global. Default: 1. Decimal integer, clamped to 0 through 4. A malformed integer
+        or one outside the platform's int range leaves the previous level unchanged.
+        The last successfully parsed value wins. Levels are not strictly cumulative;
+        see OUTPUT.
 
-    --match STRING
-        Filters and highlights responses containing the given string.
+    -M, --match STRING
+        Global. The last value wins. Case-sensitive literal substring search in the
+        response body, preserving whitespace and newlines. No regular expressions.
+        Headers and status codes are not searched. Without --match, or with an explicitly
+        empty STRING, no response is treated as matching.
+        A match controls response display/highlighting; it does not skip requests, stop
+        after the first match, mark an HTTP request as failed or change the exit status.
+        Level 4 still displays bodies that do not match.
+
+    --no-color
+        Global switch with no value. Colors are enabled by default; this removes color
+        sequences from log text.
+        It does not disable the banner, progress bar or terminal cursor-control sequences,
+        so redirected output is not guaranteed to be plain text. Repeating it has no effect.
 
     -h, --help
-        Display help information.
+        Display this manual and exit with status 0 without sending requests.
+        The startup banner is printed first. Argument consistency is checked before help:
+        malformed accompanying arguments, such as --help -u, can still be rejected.
+
+PAIR SYNTAX
+    For -H, -b, -d and -w, surrounding whitespace is removed from keys and values.
+    A missing delimiter, an empty key/value or an empty separated pair is rejected.
+    Leading, trailing and doubled pair separators (; for cookies, & for data, commas for
+    wordlists) therefore fail. Shell quotes do not escape a field's separator.
+    Only -d performs percent decoding, after the whitespace check.
+    Values produced later by wordlists are not checked again by this parser.
+
+    To migrate comma-separated inputs, use -H 'A:one' -H 'B:two' for headers,
+    -b 'a=one;b=two' for cookies and -d 'a=one&b=two' for form fields.
+
+WORDLIST EXPANSION
+    Aliases are case-sensitive literal substrings in header, cookie and data keys/values.
+    They are not expanded in URLs, methods, --match or other options. List declarations
+    can appear before or after the fields they expand within the same target.
+
+    Every occurrence of one alias within a single key/value pair uses the same word,
+    including when the alias appears in both key and value. Different lists in that pair
+    form a Cartesian product. Replacement text is not scanned for more placeholders.
+    Form data is URL-decoded before expansion; words read from files are inserted literally
+    and are form-encoded when the body is built, without an additional decoding step.
+
+    Separate pairs expand independently, even when they use the same alias. For example,
+    a two-line FUZZ list used in one header and one cookie produces four configurations.
+    Each configuration then receives its own workers according to --threads and --mode.
+    All combinations are built in memory before sending. Their order is not guaranteed.
+    Repeated or overlapping aliases are not rejected. At a position where aliases compete,
+    the first declared matching alias wins, but all matching lists still participate in
+    the combinations and can generate duplicate requests.
+
+    LF and CRLF line endings are removed. Other whitespace, blank lines and duplicate
+    lines are retained as replacements; there is no comment syntax and a UTF-8 BOM is
+    not removed. A final newline is optional and does not add a replacement.
+    Unreadable files or scanner errors terminate the run with an input error. The scanner
+    accepts lines up to 65535 bytes with LF or no final newline, or 65534 bytes with CRLF;
+    longer lines fail with a token-too-long error.
+    All declared files are read, even if their aliases are unused. An unused alias does
+    not create extra configurations. An empty list used by a field removes that target's
+    configurations; an unused empty list does not. If no configurations remain, the run
+    exits with an input error before scheduling workers. Other remaining targets still run.
+
+    Literal pairs are kept before expanded pairs. Repeated data keys and header names
+    are resolved when building requests; when expanded pairs collide, their unspecified
+    order can determine which value wins. Empty generated keys are skipped by the request
+    builder; empty generated values can be sent, subject to HTTP serialization.
+
+MODES
+    Scheduling operates on configurations after wordlist expansion. With positive thread
+    counts t1 ... tn, normal modes create sum(ti) workers. Round modes create n * max(ti).
+    A worker represents one HTTP operation; redirects and transport retries may result in
+    extra network requests. Release order does not guarantee arrival order or simultaneous
+    packets at the server.
+
+    flood
+        Create all workers and release them through a shared start signal. Request
+        preparation and each worker's delay can still affect when it sends.
+
+    sequential
+        Release all workers for one configuration together. Wait for all of them to
+        finish, including errors, before releasing the next configuration's group.
+        Requests within each group are concurrent.
+
+    cascade
+        Release each configuration's group in turn without waiting for earlier groups
+        to finish. Wait for all workers after all groups have been released.
+
+    round-sequential
+        Each round releases one worker for every configuration concurrently. Wait for
+        the whole round to finish before starting the next. The number of rounds is the
+        largest --threads value; a smaller per-target count does not limit that target.
+
+    round-cascade
+        Each round releases one worker for every configuration, without waiting for
+        earlier rounds to finish. Wait for all workers after releasing all rounds.
+        The number of rounds is the largest --threads value.
+
+    Example: two configurations with --threads 2 and --threads 3 produce five workers
+    in normal modes, but six in either round mode: three for each configuration.
+
+OUTPUT
+    The startup banner and progress display are independent of the selected verbosity.
+    Progress shows Sent (workers entering the HTTP exchange), Complete (successes plus
+    failures), Remaining (total minus Complete) and Failed. A construction failure can
+    increase Complete and Failed without increasing Sent. HTTP status 4xx/5xx alone is
+    not a failure; a complete response is successful regardless of status or a match.
+
+    0   Progress only after startup. Ordinary request errors and match messages are hidden;
+        input errors still go to stderr and failures still affect progress and exit status.
+    1   Input messages, request errors and status/hash notifications for matching bodies.
+    2   Level 1 plus worker starts/cache information and the first matching line, highlighted.
+        For a match spanning lines, the displayed context is the whole body.
+    3   Level 1 plus worker starts and entire matching bodies, highlighted. Nonmatching
+        bodies and the level-2 line excerpt are omitted.
+    4   Level 1 plus all response bodies and worker starts. Matching bodies are highlighted;
+        nonmatching bodies include a status/hash prefix. Currently each worker start is
+        printed twice at this level.
+
+    No match means levels 1-3 do not print response bodies; use -v 4 to see every body.
+    Response headers are not printed. Bodies are read completely before matching, even
+    at level 0, with no configured size limit. Logs and progress go to stdout; input errors,
+    unexpected panics and some HTTP library diagnostics go to stderr.
+    The cache reuses prepared requests, not server responses; a cache hit still sends an
+    HTTP operation.
+
+HTTP BEHAVIOR
+    The default Go HTTP transport reuses connections and can negotiate HTTP/2 for HTTPS.
+    TLS verifies the certificate and URL hostname against the system's trusted certificates.
+    There are no dedicated options to force an HTTP version or skip TLS verification.
+
+    Redirects are followed; one that would start an eleventh request in the chain fails.
+    For 301/302/303, the body is dropped; GET/HEAD are preserved and other methods become GET.
+    For 307/308, method and body are preserved. Sensitive headers are not forwarded to
+    unrelated domains. Only the final response is matched and displayed. There is no
+    dedicated option to disable redirects.
+
+    The transport normally requests gzip and decompresses it before matching/output.
+    A nonempty Accept-Encoding supplied through -H disables that automatic decoding.
+    Thus matching uses the body delivered by the HTTP library, not raw bytes on the wire.
+
+    HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or their lowercase forms) configure the default
+    transport's proxy behavior. ALL_PROXY is not used. localhost and loopback addresses
+    bypass environment proxies. There is no dedicated proxy option.
+
+ERROR HANDLING
+    Rejected arguments, wordlist read errors, an empty run after wordlist expansion and
+    overflow of the scheduled worker total print an error to stderr and exit with status 2,
+    without a stack trace. Unexpected internal panics still include a stack trace.
+
+    Accepted arguments do not guarantee valid HTTP fields or a reachable URL. Request
+    construction, transport and body-read errors are handled during execution and cause
+    exit status 1. HTTP error status codes alone are not failures.
 
 EXAMPLES
-    Basic race condition test against two targets:
-        gorace -u '1.com' --threads 10 --delay 100 -u '2.com' --threads 10 --delay 1000 --verbose 3
+    Two targets with separate thread counts, waiting for each target's group:
+        gorace -u 'https://example.com/a' -t 2 -D 100 \
+               -u 'https://example.com/b' -t 3 -D 200 -m sequential -v 4
 
-    Fuzzing a request body with a wordlist:
-        gorace -u 'x.com' -d 'FUZZ=payload' -w 'FUZZ=./wordlist.txt' \
-               --threads 10 --delay 100 --verbose 2 --match 'file'
+    POST form data with a two-placeholder Cartesian product:
+        gorace -u 'https://example.com/' -X POST -d 'user=USER&token=TOKEN' \
+               -w 'USER=./users.txt,TOKEN=./tokens.txt' -t 2 -M 'accepted' -v 2
 
-    Testing multiple different targets in the same run:
-        gorace -u 'x.com' -d 'FUZZ=payload' -w 'FUZZ=./wordlist.txt' --threads 10 --delay 100 \
-               -u 'y.com' --threads 10 --delay 1000 --verbose 3 --match e
+    Headers, cookies, timeout and full response output:
+        gorace -u 'https://example.com/' -H 'Accept:text/html,application/json' \
+               -H 'Authorization:Bearer token' -b 'session=abc;theme=dark' \
+               --timeout 5s --no-color -v 4
 
 EXIT STATUS
-    0
-        Successful execution.
-
-    1
-        Execution error.
+    0   All scheduled HTTP operations completed without construction, transport or body-read
+        errors, or help was displayed. No match and HTTP error status codes still return 0.
+    1   At least one HTTP operation failed to build, send or read, including a timeout.
+    2   An input error as described under ERROR HANDLING, or an unexpected internal panic.
 
 SEE ALSO
     curl(1), ffuf(1), nmap(1)

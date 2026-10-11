@@ -2,6 +2,7 @@ package request
 
 import (
 	"gorace/input"
+	"math"
 	"sync"
 )
 
@@ -20,6 +21,9 @@ func maxThreads(configs []input.Config) int {
 func totalThreads(configs []input.Config) int {
 	n := 0
 	for _, w := range configs {
+		if w.Threads > math.MaxInt-n {
+			panic("[x] Total thread count is too large")
+		}
 		n += w.Threads
 	}
 	return n
@@ -85,6 +89,11 @@ func InitWorkers(configs []input.Config, global input.GlobalFlags, ch WorkerChan
 	// Easier to see the init parameters
 	const ROUND, NORMAL bool = true, false
 	const SEQUENTIAL, CASCADE bool = true, false
+
+	if (global.Mode == "round-sequential" || global.Mode == "round-cascade") &&
+		len(configs) > math.MaxInt/maxThreads(configs) {
+		panic("[x] Total thread count is too large")
+	}
 
 	switch global.Mode {
 

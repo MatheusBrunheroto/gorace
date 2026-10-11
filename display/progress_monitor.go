@@ -58,12 +58,12 @@ func progressMonitor(barSize int, progress log.ProgressReader, logChan chan<- lo
 		remaining = total - completed
 
 		bar := progressBar(completed, total, barSize)
-		line := fmt.Sprintf("%s -> Sent: [%d] Complete: [%d] Remaining: [%d]", bar, sent, succeeded, remaining)
+		line := fmt.Sprintf("%s -> Sent: [%d] Complete: [%d] Remaining: [%d] Failed: [%d]", bar, sent, completed, remaining, failed)
 
 		logChan <- log.Entry{Text: line, Verbosity: 0}
 
 		if completed == total {
-			progress.Finished <- struct{}{}
+			progress.Finished <- failed
 			return
 		}
 

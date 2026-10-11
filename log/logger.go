@@ -21,6 +21,8 @@ type Entry struct {
 	Text       string
 	isResponse bool
 	Verbosity  int
+	Configure  bool
+	NoColor    bool
 }
 
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -48,7 +50,7 @@ func shouldLog(userVerbosity int, messageVerbosity int) bool {
 
 }
 
-func Run(logChan chan Entry, userVerbosity *int, noColor *bool) {
+func Run(logChan chan Entry, userVerbosity int, noColor bool) {
 
 	progress := cursor.NewArea()
 	var lastProgress string
@@ -56,6 +58,13 @@ func Run(logChan chan Entry, userVerbosity *int, noColor *bool) {
 	for {
 
 		log := <-logChan // Each log contains it's own verbosity, which is compared to the user's requested one
+		if log.Configure {
+			userVerbosity, noColor = log.Verbosity, log.NoColor
+			continue
+		}
+		if log.Verbosity == -1 {
+			continue
+		}
 
 		// Mandatory Logs
 		if log.Verbosity == 0 {
@@ -65,9 +74,9 @@ func Run(logChan chan Entry, userVerbosity *int, noColor *bool) {
 			continue
 		}
 
-		if shouldLog(*userVerbosity, log.Verbosity) {
+		if shouldLog(userVerbosity, log.Verbosity) {
 			progress.Clear()
-			if *noColor {
+			if noColor {
 				removeColor(&log.Text)
 			}
 			fmt.Println(log.Text)

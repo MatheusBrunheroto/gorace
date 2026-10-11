@@ -2,7 +2,9 @@ package input
 
 import (
 	"gorace/log"
+	"math"
 	"strconv"
+	"time"
 )
 
 type Pair struct {
@@ -19,6 +21,7 @@ type Config struct {
 	Wordlists []Pair
 	Threads   int
 	Delay     int
+	Timeout   time.Duration
 }
 
 func (c Config) copy() Config {
@@ -31,6 +34,7 @@ func (c Config) copy() Config {
 		Wordlists: append([]Pair(nil), c.Wordlists...),
 		Threads:   c.Threads,
 		Delay:     c.Delay,
+		Timeout:   c.Timeout,
 	}
 }
 
@@ -43,6 +47,7 @@ func defaultConfig() Config {
 		Data:    []Pair{},
 		Threads: 1,
 		Delay:   0,
+		Timeout: 30 * time.Second,
 	}
 }
 
@@ -57,14 +62,28 @@ func writeConfig(current *Config, flag string, raw string, logChan chan<- log.En
 	case "--method":
 		current.Method = normalizeMethod(raw, logChan)
 	case "--threads":
-		current.Threads, _ = strconv.Atoi(raw)
+		threads, err := strconv.Atoi(raw)
+		if err != nil || threads <= 0 {
+			panic("[x] Invalid threads (use a positive integer) -> " + raw)
+		}
+		current.Threads = threads
 	case "--delay":
-		current.Delay, _ = strconv.Atoi(raw)
+		delay, err := strconv.Atoi(raw)
+		if err != nil || delay < 0 || int64(delay) > math.MaxInt64/int64(time.Millisecond) {
+			panic("[x] Invalid delay (use nonnegative milliseconds within the supported range) -> " + raw)
+		}
+		current.Delay = delay
+	case "--timeout":
+		timeout, err := time.ParseDuration(raw)
+		if err != nil || timeout < 0 {
+			panic("[x] Invalid timeout (use 30s, 2m, or 0) -> " + raw)
+		}
+		current.Timeout = timeout
 
 	// One or more flags
 	case "--headers", "--cookies", "--data", "--wordlist":
 
-		pairs := parsePairs(raw)
+		pairs := parsePairs(raw, flag)
 
 		switch flag {
 		case "--headers":
@@ -90,6 +109,9 @@ func getConfigs(flags map[string]string, args []string, logChan chan<- log.Entry
 	for i := 0; i < len(args); i++ {
 
 		alias = args[i]
+		if alias == "--no-color" || alias == "--help" {
+			continue
+		}
 		i++
 		if i >= len(args) {
 			continue
@@ -102,13 +124,16 @@ func getConfigs(flags map[string]string, args []string, logChan chan<- log.Entry
 		}
 
 		// First URL
-		if alias == "--url" && i > 1 {
+		if alias == "--url" && current.Url != "" {
 			configs = append(configs, current.copy()) // Save Current Config
 			current = defaultConfig()                 // Set Current Config to Default
 		}
 
 		writeConfig(&current, alias, value, logChan)
 
+	}
+	if current.Url == "" {
+		panic("[x] No Website URL was informed (-u or --url)")
 	}
 	configs = append(configs, current) // To save the Last URL
 

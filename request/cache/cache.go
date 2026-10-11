@@ -45,7 +45,7 @@ func Run(ch <-chan Operation) {
 
 		r := <-ch
 
-		if r.Request == nil { // If has no "Request" in r, the operation was "getRequest"
+		if r.ReplyChan != nil { // If has a "ReplyChan" in r, the operation was "getRequest"
 
 			if req, ok := hashMap[r.Hash]; ok {
 				r.ReplyChan <- req
@@ -58,9 +58,11 @@ func Run(ch <-chan Operation) {
 				r.ReplyChan <- nil
 			}
 
-		} else { // If has "Request" in r, the operation was "insertRequest"
+		} else { // The operation was "insertRequest"; nil releases waiters after a build error
 
-			hashMap[r.Hash] = r.Request
+			if r.Request != nil {
+				hashMap[r.Hash] = r.Request
+			}
 
 			delete(pending, r.Hash)
 			for _, w := range waiters[r.Hash] {

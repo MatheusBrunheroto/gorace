@@ -6,11 +6,8 @@ import (
 	"gorace/log"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 )
-
-var whitespaceRegex = regexp.MustCompile(`>\s*<`)
 
 func highlightMatch(text string, match string) string {
 	if match == "" || !strings.Contains(text, match) {
@@ -68,25 +65,27 @@ func WorkerError(hash uint64, err string, logChan chan<- log.Entry) {
 
 }
 
-func WorkerResponse(hash uint64, resp *http.Response, match string, logChan chan<- log.Entry) {
+func WorkerResponse(hash uint64, resp *http.Response, match string, logChan chan<- log.Entry) error {
 
 	prefix := hashText(hash)
 
+	defer resp.Body.Close()
 	respbody, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		WorkerError(hash, err.Error(), logChan)
-		return
+		return err
 	}
 	body := string(respbody)
-	body = strings.ReplaceAll(body, "\n", "")
-	body = whitespaceRegex.ReplaceAllString(body, "><")
 
-	lines := strings.Split(body, "><")
+	lines := strings.Split(body, "\n")
 
-	line, found := findMatchLineIndex(lines, match)
+	line, _ := findMatchLineIndex(lines, match)
+	found := match != "" && strings.Contains(body, match)
 
 	if found {
+		if line == "" {
+			line = body
+		}
 
 		// --verbosity 1 -> Match warning
 		logChan <- log.Entry{Text: fmt.Sprintf("%s- %d | Match Found!", prefix, resp.StatusCode), Verbosity: 1}
@@ -97,10 +96,11 @@ func WorkerResponse(hash uint64, resp *http.Response, match string, logChan chan
 		// --verbosity 3 -> Entire response with match highlighted
 		logChan <- log.Entry{Text: highlightMatch(body, match), Verbosity: 3}
 
-		return
+		return nil
 	}
 
 	// --- Verbosity 4: Entire bodies, if has match it will be highlighted on verbosity 3
 	logChan <- log.Entry{Text: fmt.Sprintf("%s- %d -> %s", prefix, resp.StatusCode, body), Verbosity: 4}
+	return nil
 
 }

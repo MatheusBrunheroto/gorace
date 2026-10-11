@@ -23,17 +23,26 @@ func getOrBuildRequest(w input.Config, cacheChan chan cache.Operation) (*http.Re
 	var err error
 
 	hash := cache.ComputeHash(w)
+	hit := false
 
 	if copy := cache.Get(hash, cacheChan); copy != nil {
-		request = copy.Clone(context.Background()) // !!! Does not clone BODY
-		return request, hash, true, nil
+		request = copy
+		hit = true
+	} else {
+		if request, err = buildRequest(w); err != nil {
+			cache.Insert(hash, nil, cacheChan)
+			return nil, hash, false, err
+		}
+		cache.Insert(hash, request, cacheChan)
 	}
 
-	if request, err = buildRequest(w); err != nil {
-		return nil, 0, false, err
+	request = request.Clone(context.Background())
+	if request.GetBody != nil {
+		if request.Body, err = request.GetBody(); err != nil {
+			return nil, hash, hit, err
+		}
 	}
-	cache.Insert(hash, request, cacheChan)
-	return request.Clone(context.Background()), hash, false, nil
+	return request, hash, hit, nil
 
 }
 
@@ -44,6 +53,7 @@ func worker(start <-chan struct{}, w input.Config, match string, chans WorkerCha
 	request, hash, hit, err := getOrBuildRequest(w, chans.CacheChan)
 	if err != nil {
 		chans.LogChan <- log.Entry{Text: err.Error(), Verbosity: 1}
+		chans.Progress.Failed <- 1
 		return
 	}
 
@@ -53,7 +63,7 @@ func worker(start <-chan struct{}, w input.Config, match string, chans WorkerCha
 	time.Sleep(time.Duration(w.Delay) * time.Millisecond)
 	chans.Progress.Sent <- 1
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: w.Timeout}
 	resp, err := client.Do(request)
 	if err != nil {
 		chans.Progress.Failed <- 1
@@ -61,7 +71,10 @@ func worker(start <-chan struct{}, w input.Config, match string, chans WorkerCha
 		return
 	}
 
-	verbose.WorkerResponse(hash, resp, match, chans.LogChan)
+	if err := verbose.WorkerResponse(hash, resp, match, chans.LogChan); err != nil {
+		chans.Progress.Failed <- 1
+		return
+	}
 
 	chans.Progress.Succeeded <- 1
 

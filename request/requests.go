@@ -27,18 +27,17 @@ func getBody(rawData []input.Pair) io.Reader {
 		hasData = true
 	}
 
-	var body *strings.Reader = nil
 	if hasData {
-		body = strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
+		return strings.NewReader(data.Encode()) // Turns k1:v1 and k2:v2 to k1=v1&k2=v2
 	}
 
-	return body
+	return nil
 }
 
 func buildRequest(w input.Config) (*http.Request, error) {
 
 	// DATA - Not mandatory, but the only way to insert in the request is by creating a body
-	request, err := http.NewRequest(w.Method, w.Url, nil) // get body vem aqui
+	request, err := http.NewRequest(w.Method, w.Url, getBody(w.Data))
 	if err != nil {
 		return &http.Request{}, err
 	}
@@ -46,6 +45,10 @@ func buildRequest(w input.Config) (*http.Request, error) {
 	// HEADERS - Mandatory, if none are informed, common headers will be added
 	for _, h := range w.Headers {
 		if h.Key == "" {
+			continue
+		}
+		if strings.EqualFold(h.Key, "Host") {
+			request.Host = h.Value
 			continue
 		}
 		request.Header.Set(h.Key, h.Value)
@@ -62,7 +65,9 @@ func buildRequest(w input.Config) (*http.Request, error) {
 		request.AddCookie(&http.Cookie{Name: c.Key, Value: c.Value})
 	}
 
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if request.Body != nil && request.Header.Get("Content-Type") == "" {
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 	return request, nil
 
 }
