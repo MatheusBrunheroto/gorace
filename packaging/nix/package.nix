@@ -10,7 +10,7 @@ buildGoModule (finalAttrs: {
 
   src = fetchurl {
     url = "https://github.com/MatheusBrunheroto/gorace/releases/download/v${finalAttrs.version}/gorace-${finalAttrs.version}.tar.gz";
-    hash = "sha256-Txuk98YHTrjZqIgjw7p9sAT2Yz6WBF4mBh04g+ieZhk=";
+    hash = "sha256-9Nc4CDi5qneBaYIUjvhXiFc+KCM5ZrFW/2XBNXQ/FZc=";
   };
 
   vendorHash = "sha256-uy8/F8FW2cqte7O7KS1x89Jy3uEdiyGz41h1emyQ72E=";

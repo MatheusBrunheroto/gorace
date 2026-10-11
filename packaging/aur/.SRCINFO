@@ -9,6 +9,6 @@ pkgbase = gorace
 	depends = glibc
 	depends = ca-certificates
 	source = https://github.com/MatheusBrunheroto/gorace/releases/download/v1.0.0/gorace-1.0.0.tar.gz
-	sha256sums = 4f1ba4f7c6074eb8d9a88823c3ba7db004f6633e96045e26061d3883e89e6619
+	sha256sums = f4d7380838b9aa77816982148ef85788573e28233966b156ff65c135743f1597
 
 pkgname = gorace
