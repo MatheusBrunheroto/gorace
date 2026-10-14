@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/YOUR-VIDEO-ID-HERE
 
 ## Installation
 
-**Status:** AUR and nixpkgs publication pending.
+**Status:** AUR publication and NUR registration pending. Nix installation is available directly from the package repository below.
 
 ### AUR package
 ```bash
@@ -22,11 +22,16 @@ yay -S gorace
 ```
 This will install the `gorace` package from the AUR using `yay`.
 
-### Nix (nixpkgs)
+### Nix
+
+Install the packaged release from [nur-packages](https://github.com/MatheusBrunheroto/nur-packages), with Nixpkgs available in `NIX_PATH`:
+
 ```bash
-nix-env -f '<nixpkgs>' -iA gorace
+git clone https://github.com/MatheusBrunheroto/nur-packages.git
+nix-env -f ./nur-packages -iA gorace --arg pkgs 'import <nixpkgs> {}'
 ```
-This will install the `gorace` package in your Nix user profile once it is available in your nixpkgs channel.
+
+After NUR registration is accepted and its index is updated, users with NUR configured will also be able to use `pkgs.nur.repos.matheusbrunheroto.gorace`. See the package repository for NixOS configuration examples.
 
 ### Manual (Building from source)
 ```bash
